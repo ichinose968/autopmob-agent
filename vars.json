@@ -1,0 +1,92 @@
+{
+  "variables": [
+    {
+      "name": "Inlet concentration of A",
+      "symbol": "C_{A0}",
+      "description": "Molar concentration of species A in the feed stream entering the CSTR",
+      "unit": "mol/L",
+      "page": 1
+    },
+    {
+      "name": "Concentration of A",
+      "symbol": "C_A",
+      "description": "Steady-state molar concentration of species A within the reactor",
+      "unit": "mol/L",
+      "page": 2
+    },
+    {
+      "name": "Concentration of B",
+      "symbol": "C_B",
+      "description": "Steady-state molar concentration of intermediate species B within the reactor",
+      "unit": "mol/L",
+      "page": 2
+    },
+    {
+      "name": "Concentration of C",
+      "symbol": "C_C",
+      "description": "Steady-state molar concentration of final product C within the reactor",
+      "unit": "mol/L",
+      "page": 2
+    },
+    {
+      "name": "First-order rate constant for A→B",
+      "symbol": "k_1",
+      "description": "Reaction rate constant for the first irreversible first-order reaction converting A to B",
+      "unit": "1/time",
+      "page": 1
+    },
+    {
+      "name": "First-order rate constant for B→C",
+      "symbol": "k_2",
+      "description": "Reaction rate constant for the second irreversible first-order reaction converting B to C",
+      "unit": "1/time",
+      "page": 1
+    },
+    {
+      "name": "Mean residence time",
+      "symbol": "\\tau",
+      "description": "Average time a fluid element spends in the reactor (residence time)",
+      "unit": "time",
+      "page": 1
+    },
+    {
+      "name": "Reactor volume",
+      "symbol": "V",
+      "description": "Total volume of the continuous stirred‐tank reactor",
+      "unit": "volume",
+      "page": 1
+    },
+    {
+      "name": "Volumetric flow rate",
+      "symbol": "F",
+      "description": "Volumetric flow rate of the feed stream into (and effluent stream out of) the reactor",
+      "unit": "volume/time",
+      "page": 1
+    },
+    {
+      "name": "Reaction rate of step 1",
+      "symbol": "r_1",
+      "description": "Volumetric rate of formation of species B from A given by r_1 = k_1 C_A",
+      "unit": "mol/(L·time)",
+      "page": 2
+    },
+    {
+      "name": "Reaction rate of step 2",
+      "symbol": "r_2",
+      "description": "Volumetric rate of formation of species C from B given by r_2 = k_2 C_B",
+      "unit": "mol/(L·time)",
+      "page": 2
+    }
+  ],
+  "doc_id": "7f5478bd-02f2-436c-bf1e-3b91b9ffb0a3",
+  "provenance": [
+    {
+      "note": "generated_by_vlm_variables",
+      "pages": [
+        0,
+        1,
+        2
+      ]
+    }
+  ]
+}

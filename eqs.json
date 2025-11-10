@@ -1,0 +1,266 @@
+{
+  "equations": [
+    {
+      "id": "1",
+      "latex": "A \\xrightarrow{k_1} B \\xrightarrow{k_2} C",
+      "description": "Sequential first-order reactions converting A to B and then B to C with rate constants k₁ and k₂.",
+      "variables": [
+        "A",
+        "B",
+        "C",
+        "k_1",
+        "k_2"
+      ],
+      "page": 1
+    },
+    {
+      "id": "2",
+      "latex": "\\tau = \\frac{V}{F}",
+      "description": "Definition of the reactor residence time τ as the reactor volume V divided by the volumetric flow rate F.",
+      "variables": [
+        "\\tau",
+        "V",
+        "F"
+      ],
+      "page": 1
+    },
+    {
+      "id": "3",
+      "latex": "r_1 = k_1 C_A",
+      "description": "Rate expression for the first reaction step A → B, following first-order kinetics with respect to A.",
+      "variables": [
+        "r_1",
+        "k_1",
+        "C_A"
+      ],
+      "page": 2
+    },
+    {
+      "id": "4",
+      "latex": "r_2 = k_2 C_B",
+      "description": "Rate expression for the second reaction step B → C, following first-order kinetics with respect to B.",
+      "variables": [
+        "r_2",
+        "k_2",
+        "C_B"
+      ],
+      "page": 2
+    },
+    {
+      "id": "5",
+      "latex": "F\\bigl(C_{i0} - C_i\\bigr) + V r_i = 0",
+      "description": "General steady-state material balance for species i in the CSTR, where r_i is its net rate of generation.",
+      "variables": [
+        "F",
+        "C_{i0}",
+        "C_i",
+        "V",
+        "r_i"
+      ],
+      "page": 2
+    },
+    {
+      "id": "6",
+      "latex": "F\\bigl(C_{A0} - C_A\\bigr) = V k_1 C_A",
+      "description": "Steady-state material balance for species A, relating inlet and reactor concentrations to reaction consumption.",
+      "variables": [
+        "F",
+        "C_{A0}",
+        "C_A",
+        "V",
+        "k_1"
+      ],
+      "page": 2
+    },
+    {
+      "id": "7",
+      "latex": "F\\bigl(C_{B0} - C_B\\bigr) + V k_1 C_A = V k_2 C_B",
+      "description": "Steady-state material balance for intermediate species B, accounting for its formation from A and consumption to C.",
+      "variables": [
+        "F",
+        "C_{B0}",
+        "C_B",
+        "V",
+        "k_1",
+        "C_A",
+        "k_2"
+      ],
+      "page": 2
+    },
+    {
+      "id": "8",
+      "latex": "F\\bigl(C_{C0} - C_C\\bigr) + V k_2 C_B = 0",
+      "description": "Steady-state material balance for product species C, equating its formation rate to the outlet flow.",
+      "variables": [
+        "F",
+        "C_{C0}",
+        "C_C",
+        "V",
+        "k_2",
+        "C_B"
+      ],
+      "page": 2
+    },
+    {
+      "id": "9",
+      "latex": "C_{A0} - C_A = k_1 \\tau C_A",
+      "description": "Algebraic relation for species A obtained by substituting τ=V/F into its balance equation.",
+      "variables": [
+        "C_{A0}",
+        "C_A",
+        "k_1",
+        "\\tau"
+      ],
+      "page": 2
+    },
+    {
+      "id": "10",
+      "latex": "C_A = \\frac{C_{A0}}{1 + k_1 \\tau}",
+      "description": "Analytical steady-state concentration of A as a function of inlet concentration, rate constant, and residence time.",
+      "variables": [
+        "C_A",
+        "C_{A0}",
+        "k_1",
+        "\\tau"
+      ],
+      "page": 2
+    },
+    {
+      "id": "11",
+      "latex": "-C_B + k_1 \\tau C_A = k_2 \\tau C_B",
+      "description": "Rearranged steady-state balance for B after substitution of τ into its material balance.",
+      "variables": [
+        "C_B",
+        "k_1",
+        "\\tau",
+        "C_A",
+        "k_2"
+      ],
+      "page": 2
+    },
+    {
+      "id": "12",
+      "latex": "C_B = \\frac{k_1 \\tau C_A}{1 + k_2 \\tau}",
+      "description": "Expression for intermediate B concentration in terms of A concentration, its formation and consumption kinetics, and τ.",
+      "variables": [
+        "C_B",
+        "k_1",
+        "\\tau",
+        "C_A",
+        "k_2"
+      ],
+      "page": 2
+    },
+    {
+      "id": "13",
+      "latex": "C_B = C_{A0} \\cdot \\frac{k_1 \\tau}{(1 + k_1 \\tau)(1 + k_2 \\tau)}",
+      "description": "Steady-state concentration of B expressed solely in terms of inlet concentration, rate constants, and τ.",
+      "variables": [
+        "C_B",
+        "C_{A0}",
+        "k_1",
+        "\\tau",
+        "k_2"
+      ],
+      "page": 2
+    },
+    {
+      "id": "14",
+      "latex": "-C_C + k_2 \\tau C_B = 0",
+      "description": "Algebraic form of the steady-state balance for C after substituting τ into its material balance.",
+      "variables": [
+        "C_C",
+        "k_2",
+        "\\tau",
+        "C_B"
+      ],
+      "page": 2
+    },
+    {
+      "id": "15",
+      "latex": "C_C = k_2 \\tau C_B",
+      "description": "Relation showing that at steady state, C is produced proportionally to B by factor k₂τ.",
+      "variables": [
+        "C_C",
+        "k_2",
+        "\\tau",
+        "C_B"
+      ],
+      "page": 2
+    },
+    {
+      "id": "16",
+      "latex": "C_C = C_{A0} \\cdot \\frac{k_1 k_2 \\tau^2}{(1 + k_1 \\tau)(1 + k_2 \\tau)}",
+      "description": "Analytical steady-state concentration of product C in terms of inlet concentration, rate constants, and τ.",
+      "variables": [
+        "C_C",
+        "C_{A0}",
+        "k_1",
+        "k_2",
+        "\\tau"
+      ],
+      "page": 2
+    },
+    {
+      "id": "17",
+      "latex": "C_A + C_B + C_C = C_{A0}",
+      "description": "Mass conservation constraint showing total outlet molar concentration equals inlet concentration.",
+      "variables": [
+        "C_A",
+        "C_B",
+        "C_C",
+        "C_{A0}"
+      ],
+      "page": 2
+    },
+    {
+      "id": "18",
+      "latex": "C_A = \\frac{C_{A0}}{1 + k_1 \\tau}",
+      "description": "Summary expression for steady-state concentration of A (repeated for clarity).",
+      "variables": [
+        "C_A",
+        "C_{A0}",
+        "k_1",
+        "\\tau"
+      ],
+      "page": 2
+    },
+    {
+      "id": "19",
+      "latex": "C_B = C_{A0} \\cdot \\frac{k_1 \\tau}{(1 + k_1 \\tau)(1 + k_2 \\tau)}",
+      "description": "Summary expression for steady-state concentration of B (repeated for clarity).",
+      "variables": [
+        "C_B",
+        "C_{A0}",
+        "k_1",
+        "k_2",
+        "\\tau"
+      ],
+      "page": 2
+    },
+    {
+      "id": "20",
+      "latex": "C_C = C_{A0} \\cdot \\frac{k_1 k_2 \\tau^2}{(1 + k_1 \\tau)(1 + k_2 \\tau)}",
+      "description": "Summary expression for steady-state concentration of C (repeated for clarity).",
+      "variables": [
+        "C_C",
+        "C_{A0}",
+        "k_1",
+        "k_2",
+        "\\tau"
+      ],
+      "page": 2
+    }
+  ],
+  "doc_id": "7b51ae7b-5069-4884-9592-d2d949772aee",
+  "provenance": [
+    {
+      "note": "generated_by_vlm_equations",
+      "pages": [
+        0,
+        1,
+        2
+      ]
+    }
+  ]
+}

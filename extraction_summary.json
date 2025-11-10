@@ -1,0 +1,108 @@
+{
+  "variables": {
+    "output_file": "vars.json",
+    "count": 11,
+    "preview": [
+      {
+        "name": "Inlet concentration of A",
+        "symbol": "C_{A0}",
+        "description": "Molar concentration of species A in the feed stream entering the CSTR",
+        "unit": "mol/L",
+        "page": 1
+      },
+      {
+        "name": "Concentration of A",
+        "symbol": "C_A",
+        "description": "Steady-state molar concentration of species A within the reactor",
+        "unit": "mol/L",
+        "page": 2
+      },
+      {
+        "name": "Concentration of B",
+        "symbol": "C_B",
+        "description": "Steady-state molar concentration of intermediate species B within the reactor",
+        "unit": "mol/L",
+        "page": 2
+      },
+      {
+        "name": "Concentration of C",
+        "symbol": "C_C",
+        "description": "Steady-state molar concentration of final product C within the reactor",
+        "unit": "mol/L",
+        "page": 2
+      },
+      {
+        "name": "First-order rate constant for A→B",
+        "symbol": "k_1",
+        "description": "Reaction rate constant for the first irreversible first-order reaction converting A to B",
+        "unit": "1/time",
+        "page": 1
+      }
+    ]
+  },
+  "equations": {
+    "output_file": "eqs.json",
+    "count": 20,
+    "preview": [
+      {
+        "id": "1",
+        "latex": "A \\xrightarrow{k_1} B \\xrightarrow{k_2} C",
+        "description": "Sequential first-order reactions converting A to B and then B to C with rate constants k₁ and k₂.",
+        "variables": [
+          "A",
+          "B",
+          "C",
+          "k_1",
+          "k_2"
+        ],
+        "page": 1
+      },
+      {
+        "id": "2",
+        "latex": "\\tau = \\frac{V}{F}",
+        "description": "Definition of the reactor residence time τ as the reactor volume V divided by the volumetric flow rate F.",
+        "variables": [
+          "\\tau",
+          "V",
+          "F"
+        ],
+        "page": 1
+      },
+      {
+        "id": "3",
+        "latex": "r_1 = k_1 C_A",
+        "description": "Rate expression for the first reaction step A → B, following first-order kinetics with respect to A.",
+        "variables": [
+          "r_1",
+          "k_1",
+          "C_A"
+        ],
+        "page": 2
+      },
+      {
+        "id": "4",
+        "latex": "r_2 = k_2 C_B",
+        "description": "Rate expression for the second reaction step B → C, following first-order kinetics with respect to B.",
+        "variables": [
+          "r_2",
+          "k_2",
+          "C_B"
+        ],
+        "page": 2
+      },
+      {
+        "id": "5",
+        "latex": "F\\bigl(C_{i0} - C_i\\bigr) + V r_i = 0",
+        "description": "General steady-state material balance for species i in the CSTR, where r_i is its net rate of generation.",
+        "variables": [
+          "F",
+          "C_{i0}",
+          "C_i",
+          "V",
+          "r_i"
+        ],
+        "page": 2
+      }
+    ]
+  }
+}
