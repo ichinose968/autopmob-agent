@@ -30,7 +30,7 @@ class CLIArgs(Tap):
 
     config: Path
     results_dir: Path = Path("results")
-    result_name: str | None = None
+    run_name: str | None = None
 
     def configure(self) -> None:
         self.description = "Run the PDF-to-model workflow driven by LangChain."
@@ -571,35 +571,26 @@ def _create_llm(model_name: str, temperature: float) -> ChatOpenAI:
     return ChatOpenAI(model=model_name, temperature=temperature)
 
 
-def _build_result_path(results_dir: Path, result_name: str | None) -> Path:
+def _prepare_run_directory(results_dir: Path, run_name: str | None) -> Path:
     results_dir.mkdir(parents=True, exist_ok=True)
-    if result_name:
-        filename = (
-            result_name
-            if result_name.endswith(".json")
-            else f"{result_name}.json"
-        )
-        path = results_dir / filename
-        if path.exists():
-            logger.warning(
-                "Result file %s exists and will be overwritten.", path
-            )
-        return path
+    if run_name:
+        base_name = Path(run_name).stem
+    else:
+        base_name = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     attempt = 0
     while True:
         suffix = f"_{attempt:02d}" if attempt else ""
-        candidate = results_dir / f"model_candidates_{timestamp}{suffix}.json"
+        candidate = results_dir / f"{base_name}{suffix}"
         if not candidate.exists():
+            candidate.mkdir(parents=True)
+            logger.info("Created run directory %s", candidate)
             return candidate
         attempt += 1
 
 
-def _persist_output(
-    output: WorkflowOutput, results_dir: Path, result_name: str | None
-) -> Path:
-    target_path = _build_result_path(results_dir, result_name)
+def _persist_output(output: WorkflowOutput, run_dir: Path) -> Path:
+    target_path = run_dir / "results.json"
     target_path.write_text(
         output.model_dump_json(indent=2, ensure_ascii=False),
         encoding="utf-8",
@@ -608,11 +599,8 @@ def _persist_output(
     return target_path
 
 
-def _copy_conditions_file(config_path: Path, result_path: Path) -> Path:
-    suffix = config_path.suffix or ".config"
-    destination = result_path.with_name(
-        f"{result_path.stem}_conditions{suffix}"
-    )
+def _copy_conditions_file(config_path: Path, run_dir: Path) -> Path:
+    destination = run_dir / f"config_{config_path.name}"
     shutil.copy2(config_path, destination)
     logger.info("Copied condition file to %s", destination)
     return destination
@@ -636,8 +624,9 @@ def main() -> None:
         max_models=runtime.max_models,
     )
     output = workflow.run(workflow_input)
-    result_path = _persist_output(output, args.results_dir, args.result_name)
-    _copy_conditions_file(args.config, result_path)
+    run_dir = _prepare_run_directory(args.results_dir, args.run_name)
+    result_path = _persist_output(output, run_dir)
+    _copy_conditions_file(args.config, run_dir)
     logger.info(
         "Workflow finished; result stored at %s.",
         result_path,
