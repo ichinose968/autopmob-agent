@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import json
 import logging
 import re
 from collections.abc import Sequence
@@ -509,8 +508,6 @@ def main() -> None:
     llm = _create_llm(args.model_name, args.temperature)
     workflow = ModelBuilderWorkflow(
         llm=llm,
-        sample_variable_db=args.sample_var_db,
-        sample_equation_db=args.sample_eq_db,
         max_models=args.max_models,
     )
     output = workflow.run(workflow_input)
