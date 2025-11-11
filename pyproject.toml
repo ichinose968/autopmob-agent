@@ -9,6 +9,7 @@ dependencies = [
     "langchain-openai>=1.0.2",
     "openai>=2.7.2",
     "python-dotenv>=1.2.1",
+    "pyyaml>=6.0.3",
     "typed-argument-parser>=1.11.0",
 ]
 

@@ -34,6 +34,7 @@ dependencies = [
     { name = "langchain-openai" },
     { name = "openai" },
     { name = "python-dotenv" },
+    { name = "pyyaml" },
     { name = "typed-argument-parser" },
 ]
 
@@ -48,6 +49,7 @@ requires-dist = [
     { name = "langchain-openai", specifier = ">=1.0.2" },
     { name = "openai", specifier = ">=2.7.2" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "typed-argument-parser", specifier = ">=1.11.0" },
 ]
 
