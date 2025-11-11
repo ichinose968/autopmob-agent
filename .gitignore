@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.venv/
+.envrc
+.uv-cache/
+
+# Data & Outputs
+data/processed/
+data/raw/time_series/params/
+data/simulated/
+models/
+results/
+*.log
+*.out
+
+# Jupyter
+.ipynb_checkpoints/
+
+# MacOS
+.DS_Store
+
+# VS Code
+.vscode/
