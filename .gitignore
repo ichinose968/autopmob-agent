@@ -8,10 +8,7 @@ __pycache__/
 .uv-cache/
 
 # Data & Outputs
-data/processed/
-data/raw/time_series/params/
-data/simulated/
-models/
+data/raw/pdf
 results/
 *.log
 *.out
