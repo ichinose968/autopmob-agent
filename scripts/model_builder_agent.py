@@ -4,9 +4,14 @@ import asyncio
 import base64
 import logging
 import re
+import shutil
 from collections.abc import Sequence
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
+import yaml
 from dotenv import find_dotenv, load_dotenv
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -15,6 +20,35 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from tap import Tap
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_MODEL_NAME = "gpt-5"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+class CLIArgs(Tap):
+    """Typed CLI options for the model-builder workflow."""
+
+    config: Path
+    results_dir: Path = Path("results")
+    result_name: str | None = None
+
+    def configure(self) -> None:
+        self.description = "Run the PDF-to-model workflow driven by LangChain."
+
+    def process_args(self) -> None:
+        self.config = self.config.expanduser().resolve()
+        self.results_dir = self.results_dir.expanduser().resolve()
+        if not self.config.exists():
+            raise FileNotFoundError(f"Config file not found: {self.config}")
+        if self.config.suffix.lower() not in {".yaml", ".yml"}:
+            raise ValueError("Config file must be a .yaml or .yml file.")
+
+
+@dataclass
+class RuntimeOptions:
+    max_models: int
+    model_name: str
+    temperature: float
 
 
 class PDFDocumentInput(BaseModel):
@@ -155,6 +189,86 @@ class ModelBuilderResponse(BaseModel):
 class WorkflowOutput(BaseModel):
     organized_corpus: OrganizedCorpus
     models: list[CandidateModel]
+
+
+def _load_config_data(config_path: Path) -> dict[str, Any]:
+    text = config_path.read_text(encoding="utf-8")
+    data = yaml.safe_load(text)
+    if not isinstance(data, dict):
+        raise ValueError(
+            "Config file must define a mapping/object at the top level."
+        )
+    return data
+
+
+def _resolve_path(value: str | Path, base_dir: Path) -> Path:
+    candidate = Path(value).expanduser()
+    if not candidate.is_absolute():
+        candidate = base_dir / candidate
+    return candidate.resolve()
+
+
+def _ensure_str_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    raise ValueError(
+        f"Expected string or list of strings, got {type(value).__name__}"
+    )
+
+
+def _prepare_workflow_from_config(
+    config_data: dict[str, Any], config_path: Path
+) -> tuple[WorkflowInput, RuntimeOptions]:
+    base_dir = REPO_ROOT
+    pdf_entries = config_data.get("pdf") or config_data.get("documents")
+    if not pdf_entries:
+        raise ValueError("Config must provide a `pdf` list.")
+
+    documents: list[PDFDocumentInput] = []
+    for entry in pdf_entries:
+        if not isinstance(entry, dict):
+            raise ValueError("Each pdf entry must be a mapping with `path`.")
+        if "path" not in entry:
+            raise ValueError("PDF entry objects must include a `path` field.")
+        doc_path = _resolve_path(entry["path"], base_dir)
+        doc_id = entry.get("doc_id")
+        documents.append(PDFDocumentInput(path=doc_path, doc_id=doc_id))
+
+    objective_block = config_data.get("objective")
+    if not isinstance(objective_block, dict):
+        raise ValueError("Config must include an `objective` section.")
+    objective_text = objective_block.get("description")
+    if not objective_text:
+        raise ValueError("`objective.description` is required in the config.")
+
+    input_vars = _ensure_str_list(objective_block.get("input_variables"))
+    output_vars = _ensure_str_list(objective_block.get("output_variables"))
+    success_criteria = objective_block.get("success_criteria")
+
+    objective = ObjectiveSpec(
+        description=objective_text,
+        input_variables=input_vars,
+        output_variables=output_vars,
+        success_criteria=success_criteria,
+    )
+
+    max_models = int(config_data.get("max_models", 3))
+    if max_models < 1:
+        raise ValueError("`max_models` must be >= 1.")
+    model_name = config_data.get("model_name") or DEFAULT_MODEL_NAME
+    temperature = float(config_data.get("temperature", 0.2))
+
+    workflow_input = WorkflowInput(documents=documents, objective=objective)
+    runtime_options = RuntimeOptions(
+        max_models=max_models,
+        model_name=model_name,
+        temperature=temperature,
+    )
+    return workflow_input, runtime_options
 
 
 def convert_pdf_to_base64(pdf_path):
@@ -453,37 +567,55 @@ class ModelBuilderWorkflow:
         return WorkflowOutput(organized_corpus=corpus, models=models)
 
 
-class CLIArgs(Tap):
-    """Typed CLI options for the model-builder workflow."""
-
-    pdf: list[Path]
-    objective_text: str | None = None
-    objective_file: Path | None = None
-    input_var: list[str] = []
-    output_var: list[str] = []
-    success_criteria: str | None = None
-    max_models: int = 3
-    model_name: str = "gpt-5-2025-08-07"
-    temperature: float = 0.2
-
-    def configure(self) -> None:
-        self.description = "Run the PDF-to-model workflow driven by LangChain."
-
-    def process_args(self) -> None:
-        if not self.pdf:
-            raise ValueError("At least one --pdf must be supplied.")
-
-
-def _resolve_objective_text(args: CLIArgs) -> str:
-    if args.objective_text:
-        return args.objective_text
-    if args.objective_file:
-        return Path(args.objective_file).read_text(encoding="utf-8")
-    raise ValueError("Provide either --objective-text or --objective-file.")
-
-
 def _create_llm(model_name: str, temperature: float) -> ChatOpenAI:
     return ChatOpenAI(model=model_name, temperature=temperature)
+
+
+def _build_result_path(results_dir: Path, result_name: str | None) -> Path:
+    results_dir.mkdir(parents=True, exist_ok=True)
+    if result_name:
+        filename = (
+            result_name
+            if result_name.endswith(".json")
+            else f"{result_name}.json"
+        )
+        path = results_dir / filename
+        if path.exists():
+            logger.warning(
+                "Result file %s exists and will be overwritten.", path
+            )
+        return path
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    attempt = 0
+    while True:
+        suffix = f"_{attempt:02d}" if attempt else ""
+        candidate = results_dir / f"model_candidates_{timestamp}{suffix}.json"
+        if not candidate.exists():
+            return candidate
+        attempt += 1
+
+
+def _persist_output(
+    output: WorkflowOutput, results_dir: Path, result_name: str | None
+) -> Path:
+    target_path = _build_result_path(results_dir, result_name)
+    target_path.write_text(
+        output.model_dump_json(indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    logger.info("Saved workflow output to %s", target_path)
+    return target_path
+
+
+def _copy_conditions_file(config_path: Path, result_path: Path) -> Path:
+    suffix = config_path.suffix or ".config"
+    destination = result_path.with_name(
+        f"{result_path.stem}_conditions{suffix}"
+    )
+    shutil.copy2(config_path, destination)
+    logger.info("Copied condition file to %s", destination)
+    return destination
 
 
 def main() -> None:
@@ -494,25 +626,22 @@ def main() -> None:
         )
     _ = load_dotenv(find_dotenv())
     args = CLIArgs().parse_args()
-    objective_text = _resolve_objective_text(args)
-    documents = [
-        PDFDocumentInput(path=Path(pdf_path)) for pdf_path in args.pdf
-    ]
-    objective = ObjectiveSpec(
-        description=objective_text,
-        input_variables=args.input_var,
-        output_variables=args.output_var,
-        success_criteria=args.success_criteria,
+    config_data = _load_config_data(args.config)
+    workflow_input, runtime = _prepare_workflow_from_config(
+        config_data, args.config
     )
-    workflow_input = WorkflowInput(documents=documents, objective=objective)
-    llm = _create_llm(args.model_name, args.temperature)
+    llm = _create_llm(runtime.model_name, runtime.temperature)
     workflow = ModelBuilderWorkflow(
         llm=llm,
-        max_models=args.max_models,
+        max_models=runtime.max_models,
     )
     output = workflow.run(workflow_input)
-    logger.info("Workflow finished, emitting JSON result")
-    print(output.model_dump_json(indent=2, ensure_ascii=False))
+    result_path = _persist_output(output, args.results_dir, args.result_name)
+    _copy_conditions_file(args.config, result_path)
+    logger.info(
+        "Workflow finished; result stored at %s.",
+        result_path,
+    )
 
 
 if __name__ == "__main__":
