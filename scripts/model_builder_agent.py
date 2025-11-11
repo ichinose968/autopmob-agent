@@ -261,25 +261,12 @@ class Extractor:
 class DBOrganizer:
     def __init__(
         self,
-        sample_variable_db: Path | None = None,
-        sample_equation_db: Path | None = None,
     ):
         self.corpus = OrganizedCorpus()
         self.variable_index: dict[str, str] = {}
         self.equation_index: dict[str, str] = {}
         self.variable_counter = 1
         self.equation_counter = 1
-
-        if sample_variable_db and sample_variable_db.exists():
-            logger.info(
-                "Loading seed variable DB from '%s'", sample_variable_db
-            )
-            self._load_sample_variables(sample_variable_db)
-        if sample_equation_db and sample_equation_db.exists():
-            logger.info(
-                "Loading seed equation DB from '%s'", sample_equation_db
-            )
-            self._load_sample_equations(sample_equation_db)
 
     def ingest(self, extraction: DocumentExtraction) -> None:
         logger.info(
@@ -372,53 +359,6 @@ class DBOrganizer:
         if not entry.description and equation.description:
             entry.description = equation.description
 
-    def _load_sample_variables(self, path: Path) -> None:
-        logger.debug("Reading variable samples from '%s'", path)
-        with open(path, encoding="utf-8") as handle:
-            payload = json.load(handle)
-        doc_id = payload.get("doc_id", "sample_variables")
-        for record in payload.get("variables", []):
-            symbol = record.get("symbol") or record.get("name")
-            definition = record.get("description") or record.get("name")
-            if not symbol or not definition:
-                continue
-            variable = ExtractedVariable(
-                symbol=symbol,
-                definition=definition,
-                description=record.get("description"),
-            )
-            extraction = DocumentExtraction(
-                document_id=doc_id,
-                title=record.get("name"),
-                narrative=record.get("description") or "",
-                variables=[variable],
-                equations=[],
-            )
-            self._upsert_variable(variable, extraction)
-
-    def _load_sample_equations(self, path: Path) -> None:
-        logger.debug("Reading equation samples from '%s'", path)
-        with open(path, encoding="utf-8") as handle:
-            payload = json.load(handle)
-        doc_id = payload.get("doc_id", "sample_equations")
-        for record in payload.get("equations", []):
-            latex = record.get("latex") or record.get("expression")
-            if not latex:
-                continue
-            equation = ExtractedEquation(
-                latex=latex,
-                variables=record.get("variables", []),
-                description=record.get("description"),
-            )
-            extraction = DocumentExtraction(
-                document_id=doc_id,
-                title=record.get("name"),
-                narrative=record.get("description") or "",
-                variables=[],
-                equations=[equation],
-            )
-            self._upsert_equation(equation, extraction)
-
 
 class ModelBuilder:
     def __init__(self, llm: ChatOpenAI, max_models: int = 2):
@@ -492,12 +432,10 @@ class ModelBuilderWorkflow:
     def __init__(
         self,
         llm: ChatOpenAI,
-        sample_variable_db: Path | None = None,
-        sample_equation_db: Path | None = None,
         max_models: int = 2,
     ):
         self.extractor = Extractor(llm)
-        self.organizer = DBOrganizer(sample_variable_db, sample_equation_db)
+        self.organizer = DBOrganizer()
         self.builder = ModelBuilder(llm, max_models)
 
     def run(self, workflow_input: WorkflowInput) -> WorkflowOutput:
@@ -525,8 +463,6 @@ class CLIArgs(Tap):
     input_var: list[str] = []
     output_var: list[str] = []
     success_criteria: str | None = None
-    sample_var_db: Path | None = None
-    sample_eq_db: Path | None = None
     max_models: int = 3
     model_name: str = "gpt-5-2025-08-07"
     temperature: float = 0.2
