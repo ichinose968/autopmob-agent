@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import asyncio
 import base64
 import json
@@ -14,6 +13,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field, field_validator, model_validator
+from tap import Tap
 
 logger = logging.getLogger(__name__)
 
@@ -516,77 +516,30 @@ class ModelBuilderWorkflow:
         return WorkflowOutput(organized_corpus=corpus, models=models)
 
 
-def _build_arg_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Run the PDF-to-model workflow driven by LangChain."
-    )
-    parser.add_argument(
-        "--pdf",
-        dest="pdfs",
-        action="append",
-        required=True,
-        help="Path to a PDF paper. Repeat for multiple files.",
-    )
-    parser.add_argument(
-        "--objective-text",
-        help="Inline text describing the modelling objective.",
-    )
-    parser.add_argument(
-        "--objective-file",
-        type=Path,
-        help="File containing the modelling objective.",
-    )
-    parser.add_argument(
-        "--input-var",
-        dest="input_vars",
-        action="append",
-        default=[],
-        help="Name of an input variable to highlight. Repeatable.",
-    )
-    parser.add_argument(
-        "--output-var",
-        dest="output_vars",
-        action="append",
-        default=[],
-        help="Name of an output variable to highlight. Repeatable.",
-    )
-    parser.add_argument(
-        "--success-criteria",
-        help="Optional sentence describing what makes a model acceptable.",
-    )
-    parser.add_argument(
-        "--sample-var-db",
-        type=Path,
-        help="Optional path to an existing variable DB JSON"
-        " to align terminology.",
-    )
-    parser.add_argument(
-        "--sample-eq-db",
-        type=Path,
-        help="Optional path to an existing equation DB JSON"
-        " to align terminology.",
-    )
-    parser.add_argument(
-        "--max-models",
-        type=int,
-        default=2,
-        help="Number of candidate models to request from the LLM.",
-    )
-    parser.add_argument(
-        "--model-name",
-        default="gpt-5-2025-08-07",
-        help="OpenAI Chat Completions model identifier.",
-    )
-    parser.add_argument(
-        "--temperature",
-        type=float,
-        default=0.2,
-        help="Sampling temperature for the OpenAI model.",
-    )
-    return parser
+class CLIArgs(Tap):
+    """Typed CLI options for the model-builder workflow."""
+
+    pdf: list[Path]
+    objective_text: str | None = None
+    objective_file: Path | None = None
+    input_var: list[str] = []
+    output_var: list[str] = []
+    success_criteria: str | None = None
+    sample_var_db: Path | None = None
+    sample_eq_db: Path | None = None
+    max_models: int = 3
+    model_name: str = "gpt-5-2025-08-07"
+    temperature: float = 0.2
+
+    def configure(self) -> None:
+        self.description = "Run the PDF-to-model workflow driven by LangChain."
+
+    def process_args(self) -> None:
+        if not self.pdf:
+            raise ValueError("At least one --pdf must be supplied.")
 
 
-def _resolve_objective_text(args: argparse.Namespace) -> str:
+def _resolve_objective_text(args: CLIArgs) -> str:
     if args.objective_text:
         return args.objective_text
     if args.objective_file:
@@ -605,16 +558,15 @@ def main() -> None:
             format="%(asctime)s %(levelname)s %(name)s - %(message)s",
         )
     _ = load_dotenv(find_dotenv())
-    parser = _build_arg_parser()
-    args = parser.parse_args()
+    args = CLIArgs().parse_args()
     objective_text = _resolve_objective_text(args)
     documents = [
-        PDFDocumentInput(path=Path(pdf_path)) for pdf_path in args.pdfs
+        PDFDocumentInput(path=Path(pdf_path)) for pdf_path in args.pdf
     ]
     objective = ObjectiveSpec(
         description=objective_text,
-        input_variables=args.input_vars,
-        output_variables=args.output_vars,
+        input_variables=args.input_var,
+        output_variables=args.output_var,
         success_criteria=args.success_criteria,
     )
     workflow_input = WorkflowInput(documents=documents, objective=objective)
