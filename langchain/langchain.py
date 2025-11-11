@@ -257,7 +257,7 @@ def main() -> None:
 # =====================
 # 3) compiler（LLM例）
 # =====================
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+llm = ChatOpenAI(model="gpt-5", temperature=0)
 
 def compile_model(canon: List[CanonicalEquation], meta: Dict[str, Any]) -> CompiledModel:
     """
@@ -266,11 +266,9 @@ def compile_model(canon: List[CanonicalEquation], meta: Dict[str, Any]) -> Compi
     """
     prompt = f"""
 あなたは化学・プロセス工学のモデリングのプロフェッショナルです.
-以下の数式リストから必要な数式を選び組み合わせ，式変形を繰り返すことによって目的を果たすような数式をモデリングし，形式に従って出力してください.
-- 目的：C_A_0とその他必要なパラメータを用いて,C_Cを計算できる物理モデルを作成する.
+今から数式情報を渡す.これらの数式を用いて物理モデルを作成してほしい．具体的には，C_A_0を用いてC_Cを表現する数式を作成してほしい．
 - 形式：{{"title": ..., "entities": {{"variables": [...], "parameters": [...]}}, "equations": [...], "notes": ...}}
 - json形式のみの出力
-- 条件：出力する数式に変数として用いるのは，パラメータのみ．
 
 
 meta:

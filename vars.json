@@ -3,89 +3,102 @@
     {
       "name": "Inlet concentration of A",
       "symbol": "C_{A0}",
-      "description": "Molar concentration of species A in the feed stream entering the CSTR",
-      "unit": "mol/L",
+      "description": "Molar concentration of reactant A in the feed entering the reactor.",
+      "unit": "mol·L^{-1}",
       "page": 1
     },
     {
-      "name": "Concentration of A",
-      "symbol": "C_A",
-      "description": "Steady-state molar concentration of species A within the reactor",
-      "unit": "mol/L",
-      "page": 2
-    },
-    {
-      "name": "Concentration of B",
-      "symbol": "C_B",
-      "description": "Steady-state molar concentration of intermediate species B within the reactor",
-      "unit": "mol/L",
-      "page": 2
-    },
-    {
-      "name": "Concentration of C",
-      "symbol": "C_C",
-      "description": "Steady-state molar concentration of final product C within the reactor",
-      "unit": "mol/L",
-      "page": 2
-    },
-    {
-      "name": "First-order rate constant for A→B",
-      "symbol": "k_1",
-      "description": "Reaction rate constant for the first irreversible first-order reaction converting A to B",
-      "unit": "1/time",
+      "name": "Reaction rate constant of first reaction",
+      "symbol": "k_{1}",
+      "description": "First-order rate constant for the conversion of A to intermediate B.",
+      "unit": "s^{-1}",
       "page": 1
     },
     {
-      "name": "First-order rate constant for B→C",
-      "symbol": "k_2",
-      "description": "Reaction rate constant for the second irreversible first-order reaction converting B to C",
-      "unit": "1/time",
+      "name": "Reaction rate constant of second reaction",
+      "symbol": "k_{2}",
+      "description": "First-order rate constant for the conversion of intermediate B to product C.",
+      "unit": "s^{-1}",
       "page": 1
     },
     {
-      "name": "Mean residence time",
+      "name": "Residence time",
       "symbol": "\\tau",
-      "description": "Average time a fluid element spends in the reactor (residence time)",
-      "unit": "time",
+      "description": "Mean residence time of fluid elements in the reactor, defined as reactor volume divided by volumetric flow rate.",
+      "unit": "s",
       "page": 1
     },
     {
       "name": "Reactor volume",
       "symbol": "V",
-      "description": "Total volume of the continuous stirred‐tank reactor",
-      "unit": "volume",
+      "description": "Volume of the continuous stirred tank reactor.",
+      "unit": "L",
       "page": 1
     },
     {
       "name": "Volumetric flow rate",
       "symbol": "F",
-      "description": "Volumetric flow rate of the feed stream into (and effluent stream out of) the reactor",
-      "unit": "volume/time",
+      "description": "Volumetric flow rate of the feed stream into the reactor.",
+      "unit": "L·s^{-1}",
       "page": 1
     },
     {
-      "name": "Reaction rate of step 1",
-      "symbol": "r_1",
-      "description": "Volumetric rate of formation of species B from A given by r_1 = k_1 C_A",
-      "unit": "mol/(L·time)",
+      "name": "Reaction rate of first step",
+      "symbol": "r_{1}",
+      "description": "Rate of the first irreversible first-order reaction consuming A (A → B).",
+      "unit": "mol·L^{-1}·s^{-1}",
       "page": 2
     },
     {
-      "name": "Reaction rate of step 2",
-      "symbol": "r_2",
-      "description": "Volumetric rate of formation of species C from B given by r_2 = k_2 C_B",
-      "unit": "mol/(L·time)",
+      "name": "Reaction rate of second step",
+      "symbol": "r_{2}",
+      "description": "Rate of the second irreversible first-order reaction consuming B (B → C).",
+      "unit": "mol·L^{-1}·s^{-1}",
+      "page": 2
+    },
+    {
+      "name": "Steady-state concentration of A",
+      "symbol": "C_{A}",
+      "description": "Molar concentration of species A in the reactor at steady state.",
+      "unit": "mol·L^{-1}",
+      "page": 2
+    },
+    {
+      "name": "Steady-state concentration of B",
+      "symbol": "C_{B}",
+      "description": "Molar concentration of intermediate species B in the reactor at steady state.",
+      "unit": "mol·L^{-1}",
+      "page": 2
+    },
+    {
+      "name": "Steady-state concentration of C",
+      "symbol": "C_{C}",
+      "description": "Molar concentration of product species C in the reactor at steady state.",
+      "unit": "mol·L^{-1}",
+      "page": 2
+    },
+    {
+      "name": "Inlet concentration of B",
+      "symbol": "C_{B0}",
+      "description": "Molar concentration of B in the feed entering the reactor (set to zero in this study).",
+      "unit": "mol·L^{-1}",
+      "page": 2
+    },
+    {
+      "name": "Inlet concentration of C",
+      "symbol": "C_{C0}",
+      "description": "Molar concentration of C in the feed entering the reactor (set to zero in this study).",
+      "unit": "mol·L^{-1}",
       "page": 2
     }
   ],
-  "doc_id": "7f5478bd-02f2-436c-bf1e-3b91b9ffb0a3",
+  "doc_id": "a5559e6b-9b8f-4b65-906c-22851905383c",
   "provenance": [
     {
       "note": "generated_by_vlm_variables",
       "pages": [
         0,
-        1,
-        2
+        1
       ]
     }
   ]
