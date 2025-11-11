@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import logging
 import re
 import shutil
@@ -156,6 +157,150 @@ class OrganizedCorpus(BaseModel):
     documents: dict[str, DocumentRecord] = Field(default_factory=dict)
     variables: dict[str, VariableEntry] = Field(default_factory=dict)
     equations: dict[str, EquationEntry] = Field(default_factory=dict)
+
+
+class HarmonizedVariable(BaseModel):
+    canonical_symbol: str
+    definition: str
+    description: str | None = None
+    documents: list[str] = Field(default_factory=list)
+    contexts: list[str] = Field(default_factory=list)
+
+
+class HarmonizedEquation(BaseModel):
+    latex: str
+    variables: list[str] = Field(default_factory=list)
+    description: str | None = None
+    documents: list[str] = Field(default_factory=list)
+    contexts: list[str] = Field(default_factory=list)
+
+
+class OrganizerResponse(BaseModel):
+    variables: list[HarmonizedVariable] = Field(default_factory=list)
+    equations: list[HarmonizedEquation] = Field(default_factory=list)
+
+
+class DBOrganizer:
+    def __init__(self, llm: ChatOpenAI):
+        self.llm = llm
+        self.prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You are a scientific knowledge organizer. Given "
+                    "extracted variables and equations from multiple "
+                    "documents, you must produce harmonized canonical "
+                    "variables and equations. Group synonymous variables "
+                    "together, keep LaTeX equations consistent, list "
+                    "supporting documents, and capture short contexts "
+                    "that explain each item.",
+                ),
+                (
+                    "human",
+                    "Objective:\n{objective}\n\n"
+                    "Document extractions:\n{documents}\n\n"
+                    "Return harmonized variables and equations that can be "
+                    "used downstream for model construction. Use document IDs "
+                    "exactly as provided.",
+                ),
+            ]
+        )
+
+    def organize(
+        self,
+        extractions: list[DocumentExtraction],
+        objective: ObjectiveSpec,
+    ) -> OrganizedCorpus:
+        if not extractions:
+            return OrganizedCorpus()
+
+        doc_payload = self._format_documents_for_prompt(extractions)
+        chain = self.prompt | self.llm.with_structured_output(
+            OrganizerResponse
+        )
+        response = chain.invoke(
+            {
+                "objective": objective.as_prompt_fragment(),
+                "documents": doc_payload,
+            }
+        )
+        # Ensure response is an OrganizerResponse instance
+        if isinstance(response, dict):
+            response = OrganizerResponse.model_validate(response)
+        corpus = self._response_to_corpus(response, extractions)
+        logger.info(
+            "LLM-organized corpus: %d variables / %d equations",
+            len(corpus.variables),
+            len(corpus.equations),
+        )
+        return corpus
+
+    def _format_documents_for_prompt(
+        self, extractions: list[DocumentExtraction]
+    ) -> str:
+        payload: list[dict[str, Any]] = []
+        for extraction in extractions:
+            payload.append(
+                {
+                    "doc_id": extraction.document_id,
+                    "title": extraction.title,
+                    "narrative": extraction.narrative,
+                    "variables": [
+                        {
+                            "symbol": var.symbol,
+                            "definition": var.definition,
+                            "description": var.description,
+                        }
+                        for var in extraction.variables
+                    ],
+                    "equations": [
+                        {
+                            "latex": eq.latex,
+                            "variables": eq.variables,
+                            "description": eq.description,
+                        }
+                        for eq in extraction.equations
+                    ],
+                }
+            )
+        return json.dumps(payload, ensure_ascii=False, indent=2)
+
+    def _response_to_corpus(
+        self,
+        response: OrganizerResponse,
+        extractions: list[DocumentExtraction],
+    ) -> OrganizedCorpus:
+        corpus = OrganizedCorpus()
+        for extraction in extractions:
+            corpus.documents[extraction.document_id] = DocumentRecord(
+                doc_id=extraction.document_id,
+                title=extraction.title or extraction.document_id,
+                summary=extraction.narrative,
+            )
+
+        for idx, variable in enumerate(response.variables, start=1):
+            variable_id = f"var_{idx:04d}"
+            corpus.variables[variable_id] = VariableEntry(
+                variable_id=variable_id,
+                symbol=variable.canonical_symbol,
+                definition=variable.definition,
+                description=variable.description,
+                documents=sorted(set(variable.documents)),
+                contexts=variable.contexts,
+            )
+
+        for idx, equation in enumerate(response.equations, start=1):
+            equation_id = f"eq_{idx:04d}"
+            corpus.equations[equation_id] = EquationEntry(
+                equation_id=equation_id,
+                latex=equation.latex,
+                variables=equation.variables,
+                description=equation.description,
+                documents=sorted(set(equation.documents)),
+                contexts=equation.contexts,
+            )
+
+        return corpus
 
 
 class EquationComponent(BaseModel):
@@ -369,108 +514,6 @@ class Extractor:
         return asyncio.run(self.run_async(documents, objective))
 
 
-class DBOrganizer:
-    def __init__(
-        self,
-    ):
-        self.corpus = OrganizedCorpus()
-        self.variable_index: dict[str, str] = {}
-        self.equation_index: dict[str, str] = {}
-        self.variable_counter = 1
-        self.equation_counter = 1
-
-    def ingest(self, extraction: DocumentExtraction) -> None:
-        logger.info(
-            "Ingesting document '%s' (%d variables / %d equations)",
-            extraction.document_id,
-            len(extraction.variables),
-            len(extraction.equations),
-        )
-        self.corpus.documents[extraction.document_id] = DocumentRecord(
-            doc_id=extraction.document_id,
-            title=extraction.title or extraction.document_id,
-            summary=extraction.narrative,
-        )
-        for variable in extraction.variables:
-            self._upsert_variable(variable, extraction)
-        for equation in extraction.equations:
-            self._upsert_equation(equation, extraction)
-
-    def export(self) -> OrganizedCorpus:
-        logger.info(
-            "Corpus snapshot: %d variables / %d equations",
-            len(self.corpus.variables),
-            len(self.corpus.equations),
-        )
-        return self.corpus
-
-    def _allocate_variable_id(self) -> str:
-        idx = f"var_{self.variable_counter:04d}"
-        self.variable_counter += 1
-        return idx
-
-    def _allocate_equation_id(self) -> str:
-        idx = f"eq_{self.equation_counter:04d}"
-        self.equation_counter += 1
-        return idx
-
-    def _upsert_variable(
-        self, variable: ExtractedVariable, extraction: DocumentExtraction
-    ) -> None:
-        variable_id = self.variable_index.get(variable.symbol)
-        context = f"{extraction.document_id}: {variable.definition}"
-        if variable_id is None:
-            variable_id = self._allocate_variable_id()
-            self.variable_index[variable.symbol] = variable_id
-            self.corpus.variables[variable_id] = VariableEntry(
-                variable_id=variable_id,
-                symbol=variable.symbol,
-                definition=variable.definition,
-                description=variable.description,
-                documents=[extraction.document_id],
-                contexts=[context],
-            )
-            return
-
-        entry = self.corpus.variables[variable_id]
-        if extraction.document_id not in entry.documents:
-            entry.documents.append(extraction.document_id)
-        entry.contexts.append(context)
-        if not entry.description and variable.description:
-            entry.description = variable.description
-
-    def _upsert_equation(
-        self, equation: ExtractedEquation, extraction: DocumentExtraction
-    ) -> None:
-        equation_id = self.equation_index.get(equation.latex)
-        context = (
-            f"{extraction.document_id}: "
-            f"{equation.description or 'equation from paper'}"
-        )
-        if equation_id is None:
-            equation_id = self._allocate_equation_id()
-            self.equation_index[equation.latex] = equation_id
-            self.corpus.equations[equation_id] = EquationEntry(
-                equation_id=equation_id,
-                latex=equation.latex,
-                variables=sorted(set(equation.variables)),
-                description=equation.description,
-                documents=[extraction.document_id],
-                contexts=[context],
-            )
-            return
-
-        entry = self.corpus.equations[equation_id]
-        if extraction.document_id not in entry.documents:
-            entry.documents.append(extraction.document_id)
-        entry.contexts.append(context)
-        merged_vars = set(entry.variables)
-        merged_vars.update(equation.variables)
-        entry.variables = sorted(merged_vars)
-        if not entry.description and equation.description:
-            entry.description = equation.description
-
-
 class ModelBuilder:
     def __init__(self, llm: ChatOpenAI, max_models: int = 2):
         self.llm = llm
@@ -479,6 +522,7 @@ class ModelBuilder:
             [
                 (
                     "system",
+                    "You are a scientific model builder. "
                     "You assemble mathematical models by recombining "
                     "documented equations. Use only the given "
                     "variables/equations and always explain how each model "
@@ -546,7 +590,7 @@ class ModelBuilderWorkflow:
         max_models: int = 2,
     ):
         self.extractor = Extractor(llm)
-        self.organizer = DBOrganizer()
+        self.organizer = DBOrganizer(llm)
         self.builder = ModelBuilder(llm, max_models)
 
     def run(self, workflow_input: WorkflowInput) -> WorkflowOutput:
@@ -557,9 +601,7 @@ class ModelBuilderWorkflow:
         extractions = self.extractor.run(
             workflow_input.documents, workflow_input.objective
         )
-        for extraction in extractions:
-            self.organizer.ingest(extraction)
-        corpus = self.organizer.export()
+        corpus = self.organizer.organize(extractions, workflow_input.objective)
         models = self.builder.build(workflow_input.objective, corpus)
         logger.info("Workflow completed with %d model(s)", len(models))
         return WorkflowOutput(organized_corpus=corpus, models=models)
