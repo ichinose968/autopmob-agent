@@ -30,6 +30,7 @@ class CLIArgs(Tap):
     config: Path
     results_dir: Path = Path("results")
     run_name: str | None = None
+    save_stage_io: bool = False
 
     def configure(self) -> None:
         self.description = "Run the PDF-to-model workflow driven by LangChain."
@@ -593,22 +594,96 @@ class ModelBuilderWorkflow:
         self.organizer = DBOrganizer(llm)
         self.builder = ModelBuilder(llm, max_models)
 
-    def run(self, workflow_input: WorkflowInput) -> WorkflowOutput:
+    def run(
+        self,
+        workflow_input: WorkflowInput,
+        recorder: StageArtifactRecorder | None = None,
+    ) -> WorkflowOutput:
         logger.info(
             "Starting workflow for %d document(s)",
             len(workflow_input.documents),
         )
+        if recorder:
+            recorder.record(
+                "extractor",
+                "input",
+                {
+                    "objective": workflow_input.objective,
+                    "documents": [
+                        {
+                            "path": str(doc.path),
+                            "doc_id": doc.doc_id,
+                            "resolved_id": doc.resolved_id(),
+                        }
+                        for doc in workflow_input.documents
+                    ],
+                },
+            )
         extractions = self.extractor.run(
             workflow_input.documents, workflow_input.objective
         )
+        if recorder:
+            recorder.record("extractor", "output", extractions)
+            recorder.record(
+                "db_organizer",
+                "input",
+                {
+                    "objective": workflow_input.objective,
+                    "extractions": extractions,
+                },
+            )
         corpus = self.organizer.organize(extractions, workflow_input.objective)
+        if recorder:
+            recorder.record("db_organizer", "output", corpus)
+            recorder.record(
+                "model_builder",
+                "input",
+                {
+                    "objective": workflow_input.objective,
+                    "organized_corpus": corpus,
+                },
+            )
         models = self.builder.build(workflow_input.objective, corpus)
+        if recorder:
+            recorder.record("model_builder", "output", models)
         logger.info("Workflow completed with %d model(s)", len(models))
         return WorkflowOutput(organized_corpus=corpus, models=models)
 
 
 def _create_llm(model_name: str, temperature: float) -> ChatOpenAI:
     return ChatOpenAI(model=model_name, temperature=temperature)
+
+
+class StageArtifactRecorder:
+    def __init__(self, run_dir: Path, enabled: bool = False):
+        self.enabled = enabled
+        self.dir = run_dir / "artifacts"
+        if self.enabled:
+            self.dir.mkdir(parents=True, exist_ok=True)
+
+    def record(self, stage: str, kind: str, payload: Any) -> None:
+        if not self.enabled:
+            return
+        path = self.dir / f"{stage}_{kind}.json"
+        path.write_text(
+            json.dumps(
+                payload,
+                ensure_ascii=False,
+                indent=2,
+                default=self._default_serializer,
+            ),
+            encoding="utf-8",
+        )
+        logger.info("Recorded %s %s artifacts to %s", stage, kind, path)
+
+    def _default_serializer(self, obj: Any) -> Any:
+        if isinstance(obj, BaseModel):
+            return obj.model_dump(mode="json")
+        if isinstance(obj, Path):
+            return str(obj)
+        if isinstance(obj, set):
+            return sorted(obj)
+        return obj
 
 
 def _prepare_run_directory(results_dir: Path, run_name: str | None) -> Path:
@@ -654,6 +729,8 @@ def main() -> None:
         )
     _ = load_dotenv(find_dotenv())
     args = CLIArgs().parse_args()
+    run_dir = _prepare_run_directory(args.results_dir, args.run_name)
+    recorder = StageArtifactRecorder(run_dir, args.save_stage_io)
     config_data = _load_config_data(args.config)
     workflow_input, runtime = _prepare_workflow_from_config(
         config_data, args.config
@@ -663,8 +740,7 @@ def main() -> None:
         llm=llm,
         max_models=runtime.max_models,
     )
-    output = workflow.run(workflow_input)
-    run_dir = _prepare_run_directory(args.results_dir, args.run_name)
+    output = workflow.run(workflow_input, recorder=recorder)
     result_path = _persist_output(output, run_dir)
     _copy_conditions_file(args.config, run_dir)
     logger.info(
