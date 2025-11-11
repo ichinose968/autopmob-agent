@@ -9,8 +9,20 @@ dependencies = [
     "langchain-openai>=1.0.2",
     "openai>=2.7.2",
     "python-dotenv>=1.2.1",
+    "typed-argument-parser>=1.11.0",
 ]
 
 [tool.setuptools.packages.find]
 where = ["scripts"]
 include = ["*"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.4",
+]
+
+[tool.ruff]
+line-length = 79             # 1行の最大文字数
+target-version = "py39"        # 対象とするPythonのバージョン
+select = ["E", "F", "I", "B", "C4", "UP"]  # 有効にするLintルール
+ignore = ["E501", "B008"]      # 無視するルールの指定
