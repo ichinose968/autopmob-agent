@@ -26,8 +26,6 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 class CLIArgs(Tap):
-    """Typed CLI options for the model-builder workflow."""
-
     config: Path
     results_dir: Path = Path("results")
     run_name: str | None = None
