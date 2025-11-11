@@ -45,10 +45,24 @@ class CLIArgs(Tap):
 
 
 @dataclass
+class PromptTexts:
+    system: str
+    human: str
+
+
+@dataclass
+class PromptConfig:
+    extractor: PromptTexts
+    organizer: PromptTexts
+    model_builder: PromptTexts
+
+
+@dataclass
 class RuntimeOptions:
     max_models: int
     model_name: str
     temperature: float
+    prompt_config: PromptConfig
 
 
 class PDFDocumentInput(BaseModel):
@@ -65,6 +79,9 @@ class PDFDocumentInput(BaseModel):
         if self.doc_id:
             return self.doc_id
         return re.sub(r"[^a-zA-Z0-9]+", "_", self.path.stem).lower()
+
+    def resolved_title(self) -> str:
+        return self.path.stem
 
 
 class ObjectiveSpec(BaseModel):
@@ -182,28 +199,18 @@ class OrganizerResponse(BaseModel):
 
 
 class DBOrganizer:
-    def __init__(self, llm: ChatOpenAI):
+    def __init__(
+        self,
+        llm: ChatOpenAI,
+        prompts: PromptTexts,
+    ):
         self.llm = llm
+        system_prompt = prompts.system
+        human_prompt = prompts.human
         self.prompt = ChatPromptTemplate.from_messages(
             [
-                (
-                    "system",
-                    "You are a scientific knowledge organizer. Given "
-                    "extracted variables and equations from multiple "
-                    "documents, you must produce harmonized canonical "
-                    "variables and equations. Group synonymous variables "
-                    "together, keep LaTeX equations consistent, list "
-                    "supporting documents, and capture short contexts "
-                    "that explain each item.",
-                ),
-                (
-                    "human",
-                    "Objective:\n{objective}\n\n"
-                    "Document extractions:\n{documents}\n\n"
-                    "Return harmonized variables and equations that can be "
-                    "used downstream for model construction. Use document IDs "
-                    "exactly as provided.",
-                ),
+                ("system", system_prompt),
+                ("human", human_prompt),
             ]
         )
 
@@ -364,6 +371,36 @@ def _ensure_str_list(value: Any) -> list[str]:
     )
 
 
+def _load_prompt_set(block: Any, base_dir: Path, name: str) -> PromptTexts:
+    def _load_yaml_prompt(path: Path) -> dict[str, Any]:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError(
+                f"Prompt file '{path}' must contain a mapping "
+                f"with 'system' and 'human' keys."
+            )
+        return data
+
+    if isinstance(block, str):
+        prompt_path = _resolve_path(block, base_dir)
+        data = _load_yaml_prompt(prompt_path)
+    elif isinstance(block, dict):
+        data = block
+    else:
+        raise ValueError(
+            f"Prompts for '{name}' must be a file path or mapping."
+        )
+
+    system = data.get("system")
+    human = data.get("human")
+    if not isinstance(system, str) or not isinstance(human, str):
+        raise ValueError(
+            f"Prompts for '{name}' must include string values for "
+            f"'system' and 'human'."
+        )
+    return PromptTexts(system=system, human=human)
+
+
 def _prepare_workflow_from_config(
     config_data: dict[str, Any], config_path: Path
 ) -> tuple[WorkflowInput, RuntimeOptions]:
@@ -406,11 +443,30 @@ def _prepare_workflow_from_config(
     model_name = config_data.get("model_name") or DEFAULT_MODEL_NAME
     temperature = float(config_data.get("temperature", 0.2))
 
+    prompt_block = config_data.get("prompts")
+    if not isinstance(prompt_block, dict):
+        raise ValueError(
+            "Config must include a 'prompts' mapping with entries for "
+            "'extractor', 'organizer', and 'model_builder'."
+        )
+    prompt_config = PromptConfig(
+        extractor=_load_prompt_set(
+            prompt_block.get("extractor"), base_dir, "extractor"
+        ),
+        organizer=_load_prompt_set(
+            prompt_block.get("organizer"), base_dir, "organizer"
+        ),
+        model_builder=_load_prompt_set(
+            prompt_block.get("model_builder"), base_dir, "model_builder"
+        ),
+    )
+
     workflow_input = WorkflowInput(documents=documents, objective=objective)
     runtime_options = RuntimeOptions(
         max_models=max_models,
         model_name=model_name,
         temperature=temperature,
+        prompt_config=prompt_config,
     )
     return workflow_input, runtime_options
 
@@ -430,30 +486,34 @@ def convert_pdf_to_base64(pdf_path):
 
 
 class Extractor:
-    def __init__(self, llm: ChatOpenAI):
+    def __init__(self, llm: ChatOpenAI, prompts: PromptTexts):
         self.llm = llm
+        self.system_prompt = prompts.system
+        self.human_prompt_template = prompts.human
 
     def _build_messages(
-        self, objective: str, pdf_b64: str, pdf_file_path: Path
+        self,
+        objective: str,
+        doc: PDFDocumentInput,
+        pdf_b64: str,
     ) -> list[BaseMessage]:
-        messages = [
-            SystemMessage(
-                content="You are a scientific extraction agent. "
-                "Given PDF you must list every variable and equation "
-                "described in the paper. Return symbols and equations "
-                "in LaTeX format. Always provide a title of the PDF and "
-                "`narrative` that summarizes how the document describes "
-                "the process as well as structured `variables` and "
-                "`equations` lists.",
-            ),
+        human_text = self.human_prompt_template.format(
+            objective=objective,
+            doc_id=doc.resolved_id(),
+            title=doc.resolved_title(),
+        )
+        messages: list[BaseMessage] = [
+            SystemMessage(content=self.system_prompt),
             HumanMessage(
                 content=[
-                    {"type": "text", "text": f"Objective:\n{objective}\n\n"},
+                    {"type": "text", "text": human_text},
                     {
                         "type": "file",
                         "file": {
-                            "filename": f"{pdf_file_path}",
-                            "file_data": f"data:application/pdf;base64,{pdf_b64}",
+                            "filename": f"{doc.path}",
+                            "file_data": (
+                                f"data:application/pdf;base64,{pdf_b64}"
+                            ),
                         },
                     },
                 ]
@@ -468,7 +528,7 @@ class Extractor:
         doc_id = doc.resolved_id()
         logger.info("Submitting document '%s' for extraction", doc_id)
         objective_text = objective.as_prompt_fragment()
-        messages = self._build_messages(objective_text, pdf_b64, doc.path)
+        messages = self._build_messages(objective_text, doc, pdf_b64)
         structured_llm = self.llm.with_structured_output(DocumentExtraction)
         extraction = await structured_llm.ainvoke(messages)
 
@@ -516,27 +576,20 @@ class Extractor:
 
 
 class ModelBuilder:
-    def __init__(self, llm: ChatOpenAI, max_models: int = 2):
+    def __init__(
+        self,
+        llm: ChatOpenAI,
+        prompts: PromptTexts,
+        max_models: int = 2,
+    ):
         self.llm = llm
         self.max_models = max(1, max_models)
+        system_prompt = prompts.system
+        human_prompt = prompts.human
         self.prompt = ChatPromptTemplate.from_messages(
             [
-                (
-                    "system",
-                    "You are a scientific model builder. "
-                    "You assemble mathematical models by recombining "
-                    "documented equations. Use only the given "
-                    "variables/equations and always explain how each model "
-                    "differs from the others.",
-                ),
-                (
-                    "human",
-                    "Objective:\n{objective}\n\n"
-                    "Available database entries:\n{db_snapshot}\n\n"
-                    "Enumerate {num_models} candidate models that satisfy the "
-                    "objective. Each model must name the equations used, list "
-                    "variables, and provide a differentiator sentence.",
-                ),
+                ("system", system_prompt),
+                ("human", human_prompt),
             ]
         )
 
@@ -588,11 +641,14 @@ class ModelBuilderWorkflow:
     def __init__(
         self,
         llm: ChatOpenAI,
+        prompt_config: PromptConfig,
         max_models: int = 2,
     ):
-        self.extractor = Extractor(llm)
-        self.organizer = DBOrganizer(llm)
-        self.builder = ModelBuilder(llm, max_models)
+        self.extractor = Extractor(llm, prompt_config.extractor)
+        self.organizer = DBOrganizer(llm, prompt_config.organizer)
+        self.builder = ModelBuilder(
+            llm, prompt_config.model_builder, max_models
+        )
 
     def run(
         self,
@@ -738,6 +794,7 @@ def main() -> None:
     llm = _create_llm(runtime.model_name, runtime.temperature)
     workflow = ModelBuilderWorkflow(
         llm=llm,
+        prompt_config=runtime.prompt_config,
         max_models=runtime.max_models,
     )
     output = workflow.run(workflow_input, recorder=recorder)
