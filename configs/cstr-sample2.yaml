@@ -1,0 +1,25 @@
+pdf:
+  - path: data/example/20251109_article_model1_revised_2.pdf
+    doc_id: cstr-1
+  - path: data/raw/pdf/CSTR/Sundari_and_Nachiappan_2017.pdf
+    doc_id: cstr-Sundari_and_Nachiappan_2017
+
+objective:
+  description: >
+    Build a physical model for a multivariable continuous stirred-tank reactor (CSTR). The model will be used to design a control strategy for controlling reactor temperature and outlet concentration. The CSTR has two manipulated variables: coolant flowrate    and feed flowrate, allowing reactor temperature and outlet concentration to be controlled. The model should capture the nonlinear dynamics of the CSTR, including reaction kinetics, heat transfer, and mass balance equations.
+  input_variables:
+    - feed_flowrate
+    - coolant_flowrate
+    - coolant_inlet_temperature
+    - feed_concentration
+    - feed_temperature
+  output_variables:
+    - reactor_temperature
+    - outlet_concentration
+    - coolant_exit_temperature
+  success_criteria: >
+    Provide at least two candidate model structures (e.g., nonlinear versus linearized decoupled forms) that clearly map manipulated variables to controlled variables.
+
+max_models: 3
+model_name: gpt-5-2025-08-07
+temperature: 0.2
