@@ -1,65 +1,144 @@
-# 研究PDF解析パイプライン
+## AutoPMoB Agent
 
-このリポジトリは、研究論文などのPDFを画像化した上で、OpenAIの視覚対応モデルに渡し、論文構造化JSON（DocJSON）や変数・数式データベースを生成するためのサンプル実装です。生成したJSONは `jsonschema` でバリデーションし、再利用しやすい形で保存できます。
+An experimental workflow for extracting mathematical relations from PDFs and assembling
+candidate process models with LangChain + OpenAI. The core logic lives in
+`scripts/model_builder_agent.py`, which orchestrates three LLM-driven stages:
 
-## ディレクトリ構成
+1. **Extractor** – reads PDFs and returns narratives, variables, and equations.
+2. **DBOrganizer** – harmonizes extracted variables/equations across documents.
+3. **ModelBuilder** – combines the organized knowledge into objective-specific models.
 
-- `src/` – DocJSON 抽出パイプライン（`main.py`・`pdf_to_images.py`・`classify_extract_vlm.py`・`schema_docjson.py`）
-- `src_1/` – 変数DB・数式DB抽出パイプライン（`main.py`・`classify_extract_vlm.py` など）
-- `tests/Benavides_and_Diwekar_2012.pdf` – 動作確認用のサンプル論文
-- `doc.json`, `DB_variable.json`, `DB_equation.json` – サンプル出力
+Every stage is prompt-driven; prompts are stored as YAML files under `prompts/`.
 
-## 事前準備
+---
 
-1. Python 3.10 以上を推奨します。
-2. 仮想環境を用意する場合:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   ```
-3. 依存関係をインストールします:
-   ```bash
-   pip install openai python-dotenv jsonschema pymupdf pillow
-   ```
+## Repository Layout
 
-## 環境変数
-
-- `OPENAI_API_KEY` – OpenAI APIキー（`.env` に記載して `python-dotenv` で読み込み可能）
-- `OPENAI_MODEL` – 使用するモデルID（既定値は `o4-mini`）
-
-ルート直下に `.env` を置くと `main.py` 実行時に自動で読み込まれます。
-
-## 使い方
-
-### DocJSON を生成する
-
-```bash
-python -m src.main tests/Benavides_and_Diwekar_2012.pdf --out doc.json --dpi 220
+```
+autopmob-agent/
+├── configs/          # Workflow configs (documents, objective, prompt paths)
+├── data/             # PDFs or other inputs referenced by configs
+├── prompts/          # YAML prompt templates (system + human per stage)
+├── results/          # Run outputs (auto-created)
+├── scripts/
+│   └── model_builder_agent.py  # Main workflow
+├── README.md
+└── README_JP.md
 ```
 
-流れ: PDF → ページ毎のPNG → OpenAI Responses API → DocJSON → `jsonschema` で検証 → ファイルへ保存。
+---
 
-### 変数・数式データベースを生成する
+## Prompt Files
 
-```bash
-python -m src_1.main tests/Benavides_and_Diwekar_2012.pdf --var-out DB_variable.json --eq-out DB_equation.json
+Each stage uses a YAML file containing a `system` and `human` string:
+
+```yaml
+system: |-
+  System-role text...
+human: |-
+  Human-role template with placeholders.
 ```
 
-各スクリプトは共通の `pdf_to_images.py` で画像化し、モデルに与えるプロンプトとスキーマを変えてJSONを取得します。結果はそれぞれ `src_1/schema_docjson.py` に定義されたスキーマで検証されます。
+Placeholders such as `{objective}`, `{doc_id}`, `{title}`, `{documents}`,
+`{db_snapshot}`, or `{num_models}` are injected by the workflow depending on stage.
+Required placeholders per stage:
 
-## 出力フォーマット
+- **Extractor**: `{objective}`, `{doc_id}`, `{title}` (and the attachment is added automatically).
+- **DBOrganizer**: `{objective}`, `{documents}`.
+- **ModelBuilder**: `{objective}`, `{db_snapshot}`, `{num_models}`.
 
-- DocJSON スキーマ: `src/schema_docjson.py`
-- 変数DBスキーマ: `src_1/schema_docjson.py`
+Example files:
 
-各スキーマは `Draft 2020-12` 準拠の JSON Schema で、`jsonschema.Draft202012Validator` を用いて検証しています。必要に応じてスキーマを編集すれば、抽出結果の構造や必須項目を拡張できます。
+```
+prompts/
+  extractor.yaml
+  organizer.yaml
+  model_builder.yaml
+```
 
-## サンプルで試す
+---
 
-`tests/Benavides_and_Diwekar_2012.pdf` を入力に実行すると、既存の `doc.json` や `DB_variable.json` と近い出力を得られます。これらのファイルは期待値の参考例として活用できます。
+## Config Format
 
-## 開発メモ
+Create a YAML config in `configs/` (see `configs/cstr-sample.yaml`). Required fields:
 
-- OpenAI API の利用には課金が発生するため、試行回数や解像度（`--dpi`）の設定に注意してください。
-- ページ毎のPNGはメモリ上で処理しているため、長大なPDFでは追加の最適化が必要になる場合があります。
-- モデル応答がスキーマに適合しない場合は、プロンプトやスキーマの調整、再試行ロジックの追加などで対処してください。
+```yaml
+pdf:
+  - path: data/.../paper1.pdf
+    doc_id: cstr-1
+
+objective:
+  description: >
+    Build a physical model for ...
+  input_variables:
+    - feed_flowrate
+  output_variables:
+    - reactor_temperature
+  success_criteria: >
+    Provide at least two candidate model structures...
+
+max_models: 3
+model_name: gpt-5
+temperature: 0.2
+
+prompts:
+  extractor: prompts/extractor.yaml
+  organizer: prompts/organizer.yaml
+  model_builder: prompts/model_builder.yaml
+```
+
+Notes:
+- PDF paths can be absolute or relative to the repo root (`~/Dropbox/.../autopmob-agent`).
+- At least one document is required; `doc_id` is optional.
+- Prompt paths are **mandatory**; the script does not ship with embedded defaults.
+
+---
+
+## Running the Workflow
+
+```bash
+uv run python scripts/model_builder_agent.py \
+  --config configs/cstr-sample.yaml \
+  --run-name cstr_run_001 \
+  --save-stage-io
+```
+
+### CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `--config`      | **Required.** Path to the workflow YAML. |
+| `--results-dir` | Parent directory for run folders (default `results/`). |
+| `--run-name`    | Optional name for the run folder; timestamp is used if omitted. |
+| `--save-stage-io` | When provided, saves each stage's input/output JSON under `artifacts/`. |
+
+---
+
+## Output Structure
+
+Each run creates `results/<run_name>/` containing:
+
+- `results/documents/*.json` – one file per PDF. Each file includes:
+  - Document narrative summary.
+  - Raw extraction for that document.
+  - Harmonized variables/equations touching that document.
+- `results/models/models.json` – candidate models returned by the ModelBuilder stage.
+- `results.json` – index referencing the per-document files and models.
+- `config_<original>.yaml` – copy of the config used for traceability.
+- `artifacts/` (optional) – stage-by-stage inputs/outputs when `--save-stage-io` is set.
+
+The aggregated `WorkflowOutput` (organized corpus + models) is still printed to stdout.
+
+---
+
+## Development Notes
+
+- Python `>= 3.11` (see `pyproject.toml`).
+- Dependencies are managed with [uv](https://github.com/astral-sh/uv) and declared in `pyproject.toml`.
+- Key libraries: `langchain`, `langchain-openai`, `openai`, `PyYAML`.
+
+---
+
+## Japanese Documentation
+
+A full Japanese translation is available in [README_JP.md](README_JP.md).
