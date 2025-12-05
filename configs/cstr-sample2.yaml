@@ -23,3 +23,51 @@ objective:
 max_models: 3
 model_name: gpt-5-2025-08-07
 temperature: 0.2
+
+# pdf:
+#   - path: data/example/Bhadriraju et al. 2019 - Machine learning-based adaptive model identification of systems - Application to a chemical process.pdf
+#     doc_id: cstr-1
+#   - path: data/example/Magni et al. 2001 - A stabilizing model-based predictive control algorithm for nonlinear systems.pdf
+#     doc_id: cstr-2
+
+# objective:
+#   description: >
+#     Using the variables and equations extracted from the paper, generate new equations that constitute a novel physical model.
+#   input_variables:
+#   output_variables:
+#   success_criteria: >
+#     Provide at least two candidate model structures (e.g., nonlinear versus linearized decoupled forms) that clearly map manipulated variables to controlled variables.
+
+# max_models: 3
+# model_name: gpt-5-2025-08-07
+# temperature: 0.2
+# prompts:
+#   extractor: prompts/type_1/extractor.yaml
+#   organizer: prompts/type_1/organizer.yaml
+#   model_builder: prompts/type_1/model_builder.yaml
+
+# pdf:
+#   - path: data/example/Bhadriraju et al. 2019 - Machine learning-based adaptive model identification of systems - Application to a chemical process.pdf
+#     doc_id: cstr-1
+#   - path: data/example/CSTR/Magni et al. 2001 - A stabilizing model-based predictive control algorithm for nonlinear systems.pdf
+#     doc_id: cstr-2
+
+# objective:
+#   description: >
+#     Build a physical model for a multivariable continuous stirred-tank reactor (CSTR). The model will be used to design a control strategy for controlling reactor temperature and outlet concentration. The CSTR has two manipulated variables: coolant flowrate    and feed flowrate, allowing reactor temperature and outlet concentration to be controlled. The model should capture the nonlinear dynamics of the CSTR, including reaction kinetics, heat transfer, and mass balance equations.
+#   input_variables:
+#     - feed_flowrate
+#     - coolant_flowrate
+#     - coolant_inlet_temperature
+#     - feed_concentration
+#     - feed_temperature
+#   output_variables:
+#     - reactor_temperature
+#     - outlet_concentration
+#     - coolant_exit_temperature
+#   success_criteria: >
+#     Provide at least two candidate model structures (e.g., nonlinear versus linearized decoupled forms) that clearly map manipulated variables to controlled variables.
+
+# max_models: 3
+# model_name: gpt-5-2025-08-07
+# temperature: 0.2

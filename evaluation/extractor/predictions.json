@@ -1,0 +1,644 @@
+[
+  {
+    "document_id": "cstr-1",
+    "title": "Machine learning-based adaptive model identification of systems: Application to a chemical process",
+    "narrative": "The document develops an adaptive, physics-guided data-driven framework to identify nonlinear dynamic models using sparse regression and feature selection, and demonstrates it on a non-isothermal CSTR with an exothermic second-order reaction. The three-step procedure is: (1) offline Sparse Identification of Nonlinear Dynamics (SINDy) to select candidate functions from a large library; (2) online ordinary least-squares to re-estimate coefficients as new data arrive; and (3) stepwise feature selection to retain only statistically significant terms. The approach balances model parsimony and predictive accuracy using an error trigger. The CSTR case includes Arrhenius temperature dependence in the library and uses coupled mass and energy balances to generate training/validation data. Figure 1 on page 4 presents the flowchart of the methodology. The governing first-principles CSTR balances are given in Eqs. (12)–(13) on page 6, with simulation parameters summarized in Table 1 on page 6. Table 2 on page 6 lists the true functional coefficients used for benchmarking sparse recovery. Figures 4–7 on pages 8–11 show that the adaptive method identifies compact models with substantially lower prediction error than SINDy using the same or even much larger datasets.",
+    "variables": [
+      {
+        "symbol": "t",
+        "definition": "Time",
+        "description": "Independent variable (e.g., h)"
+      },
+      {
+        "symbol": "x(t)",
+        "definition": "State vector",
+        "description": "System states at time t (dimension n)"
+      },
+      {
+        "symbol": "u(t)",
+        "definition": "Input vector",
+        "description": "Exogenous inputs at time t (dimension p)"
+      },
+      {
+        "symbol": "f(x,u)",
+        "definition": "Governing vector field",
+        "description": "Unknown nonlinear dynamics mapping states and inputs to state time-derivatives"
+      },
+      {
+        "symbol": "\\mathbf{X}",
+        "definition": "State snapshot matrix",
+        "description": "m×n matrix with rows x(t_i)"
+      },
+      {
+        "symbol": "\\mathbf{U}",
+        "definition": "Input snapshot matrix",
+        "description": "m×p matrix with rows u(t_i)"
+      },
+      {
+        "symbol": "\\dot{\\mathbf{X}}",
+        "definition": "State-derivative snapshot matrix",
+        "description": "m×n matrix with rows \\dot{x}(t_i)"
+      },
+      {
+        "symbol": "\\Theta(\\mathbf{X},\\mathbf{U})",
+        "definition": "Candidate function library matrix",
+        "description": "m×L matrix of candidate nonlinear regressors constructed from X and U (e.g., constants, polynomials, trigonometric, exponential terms)"
+      },
+      {
+        "symbol": "\\Xi",
+        "definition": "Coefficient matrix for sparse regression",
+        "description": "L×n matrix of function coefficients"
+      },
+      {
+        "symbol": "\\lambda",
+        "definition": "Thresholding (regularization) parameter",
+        "description": "Controls sparsity in sequential thresholded least-squares (STLS)"
+      },
+      {
+        "symbol": "E(t)",
+        "definition": "Relative prediction error",
+        "description": "Frobenius-norm based error used to trigger model update"
+      },
+      {
+        "symbol": "\\|\\cdot\\|_{\\mathrm{fro}}",
+        "definition": "Frobenius norm",
+        "description": null
+      },
+      {
+        "symbol": "\\|\\cdot\\|_2",
+        "definition": "Euclidean (2-) norm",
+        "description": null
+      },
+      {
+        "symbol": "\\|\\cdot\\|_1",
+        "definition": "1-norm",
+        "description": null
+      },
+      {
+        "symbol": "\\hat{x}(t)",
+        "definition": "Model-predicted state vector",
+        "description": "Prediction at time t"
+      },
+      {
+        "symbol": "m",
+        "definition": "Number of time samples",
+        "description": null
+      },
+      {
+        "symbol": "n",
+        "definition": "Number of state variables",
+        "description": null
+      },
+      {
+        "symbol": "p",
+        "definition": "Number of input variables",
+        "description": null
+      },
+      {
+        "symbol": "L",
+        "definition": "Number of candidate library functions",
+        "description": null
+      },
+      {
+        "symbol": "z",
+        "definition": "Candidate feature for selection",
+        "description": "Regressor used in stepwise feature selection"
+      },
+      {
+        "symbol": "y",
+        "definition": "Dependent variable for regression",
+        "description": "Target output in feature selection step"
+      },
+      {
+        "symbol": "r_{zy}",
+        "definition": "Correlation coefficient between z and y",
+        "description": null
+      },
+      {
+        "symbol": "\\bar{z}",
+        "definition": "Mean of z",
+        "description": null
+      },
+      {
+        "symbol": "\\bar{y}",
+        "definition": "Mean of y",
+        "description": null
+      },
+      {
+        "symbol": "\\beta_j",
+        "definition": "Regression coefficient of feature j",
+        "description": "Used in null hypothesis testing"
+      },
+      {
+        "symbol": "\\alpha",
+        "definition": "Significance level",
+        "description": "Threshold (e.g., 0.05) for p-value in feature selection"
+      },
+      {
+        "symbol": "r",
+        "definition": "Reaction rate",
+        "description": "For A \\rightarrow B, r = K C_A^2"
+      },
+      {
+        "symbol": "K",
+        "definition": "Temperature-dependent rate constant",
+        "description": "Arrhenius form"
+      },
+      {
+        "symbol": "K_0",
+        "definition": "Pre-exponential factor",
+        "description": "Units 1/h per Table 1 (page 6)"
+      },
+      {
+        "symbol": "E",
+        "definition": "Activation energy",
+        "description": "kJ/kmol, Table 1 (page 6)"
+      },
+      {
+        "symbol": "R",
+        "definition": "Universal gas constant",
+        "description": "kJ/(kmol-K), Table 1 (page 6)"
+      },
+      {
+        "symbol": "C_A(t)",
+        "definition": "Concentration of reactant A in reactor",
+        "description": "kmol/m^3"
+      },
+      {
+        "symbol": "T(t)",
+        "definition": "Reactor temperature",
+        "description": "K"
+      },
+      {
+        "symbol": "F",
+        "definition": "Feed volumetric flow rate",
+        "description": "m^3/h"
+      },
+      {
+        "symbol": "V_r",
+        "definition": "Reactor volume",
+        "description": "m^3"
+      },
+      {
+        "symbol": "C_0",
+        "definition": "Inlet (feed) concentration of A",
+        "description": "kmol/m^3"
+      },
+      {
+        "symbol": "T_0",
+        "definition": "Inlet (feed) temperature",
+        "description": "K"
+      },
+      {
+        "symbol": "\\Delta H",
+        "definition": "Heat of reaction",
+        "description": "kJ/kmol; negative for exothermic reaction"
+      },
+      {
+        "symbol": "\\rho",
+        "definition": "Fluid density",
+        "description": "kg/m^3"
+      },
+      {
+        "symbol": "c_p",
+        "definition": "Specific heat capacity",
+        "description": "kJ/(kg-K)"
+      },
+      {
+        "symbol": "Q(t)",
+        "definition": "Applied heat input (heat duty)",
+        "description": "kJ/h; manipulated input via jacket"
+      }
+    ],
+    "equations": [
+      {
+        "latex": "\\frac{d}{dt}\\,x(t) = f\\big(x(t),\\,u(t)\\big)",
+        "variables": [
+          "x(t)",
+          "u(t)",
+          "f(x,u)",
+          "t"
+        ],
+        "description": "Unknown nonlinear state dynamics to be identified (Eq. (1), page 3)"
+      },
+      {
+        "latex": "\\mathbf{X} = \\begin{bmatrix} x_1(t_1) & x_2(t_1) & \\cdots & x_n(t_1)\\\\ x_1(t_2) & x_2(t_2) & \\cdots & x_n(t_2)\\\\ \\vdots & \\vdots & \\ddots & \\vdots \\\\ x_1(t_m) & x_2(t_m) & \\cdots & x_n(t_m) \\end{bmatrix},\\quad \\mathbf{U} = \\begin{bmatrix} u_1(t_1) & u_2(t_1) & \\cdots & u_p(t_1)\\\\ u_1(t_2) & u_2(t_2) & \\cdots & u_p(t_2)\\\\ \\vdots & \\vdots & \\ddots & \\vdots \\\\ u_1(t_m) & u_2(t_m) & \\cdots & u_p(t_m) \\end{bmatrix}",
+        "variables": [
+          "\\mathbf{X}",
+          "\\mathbf{U}",
+          "m",
+          "n",
+          "p",
+          "t"
+        ],
+        "description": "Snapshot matrices of states and inputs (Eq. (2), page 3)"
+      },
+      {
+        "latex": "\\dot{\\mathbf{X}} = \\begin{bmatrix} \\dot{x}_1(t_1) & \\dot{x}_2(t_1) & \\cdots & \\dot{x}_n(t_1)\\\\ \\dot{x}_1(t_2) & \\dot{x}_2(t_2) & \\cdots & \\dot{x}_n(t_2)\\\\ \\vdots & \\vdots & \\ddots & \\vdots \\\\ \\dot{x}_1(t_m) & \\dot{x}_2(t_m) & \\cdots & \\dot{x}_n(t_m) \\end{bmatrix}",
+        "variables": [
+          "\\dot{\\mathbf{X}}",
+          "m",
+          "n",
+          "t"
+        ],
+        "description": "Snapshot matrix of time-derivatives (Eq. (3), page 3)"
+      },
+      {
+        "latex": "\\Theta(\\mathbf{X},\\mathbf{U}) = \\big[\\;\\mathbf{1}\\;\\; \\mathbf{X}\\;\\; \\mathbf{X}^{2}\\;\\; \\cdots\\;\\; \\mathbf{U}\\;\\; \\cdots\\;\\; e^{\\mathbf{X}}\\;\\; \\sin(\\mathbf{X})\\;\\; \\cos(\\mathbf{X})\\;\\; \\cdots \\big]",
+        "variables": [
+          "\\Theta(\\mathbf{X},\\mathbf{U})",
+          "\\mathbf{X}",
+          "\\mathbf{U}"
+        ],
+        "description": "Candidate function library including constants, polynomials, inputs, exponentials and trigonometric terms (Eq. (4), page 4)"
+      },
+      {
+        "latex": "\\dot{\\mathbf{X}} = \\Theta(\\mathbf{X},\\mathbf{U})\\,\\Xi",
+        "variables": [
+          "\\dot{\\mathbf{X}}",
+          "\\Theta(\\mathbf{X},\\mathbf{U})",
+          "\\Xi"
+        ],
+        "description": "Linear regression of derivatives on candidate library (Eq. (5), page 4)"
+      },
+      {
+        "latex": "\\Xi = \\operatorname*{arg\\,min}_{\\Xi} \\, \\big\\|\\dot{\\mathbf{X}} - \\Theta(\\mathbf{X},\\mathbf{U})\\,\\Xi\\big\\|_2^2 + \\lambda\\,\\|\\Xi\\|_1",
+        "variables": [
+          "\\Xi",
+          "\\dot{\\mathbf{X}}",
+          "\\Theta(\\mathbf{X},\\mathbf{U})",
+          "\\lambda"
+        ],
+        "description": "l1-regularized least-squares (STLS) promoting sparsity (Eq. (6), page 4)"
+      },
+      {
+        "latex": "E(t) = \\dfrac{\\big\\|x(t) - \\hat{x}(t)\\big\\|_{\\mathrm{fro}}}{\\big\\|x(t)\\big\\|_{\\mathrm{fro}}}",
+        "variables": [
+          "E(t)",
+          "x(t)",
+          "\\hat{x}(t)",
+          "\\|\\cdot\\|_{\\mathrm{fro}}"
+        ],
+        "description": "Relative error used for model update triggering (Eq. (7), page 5)"
+      },
+      {
+        "latex": "H_0:\\; \\beta_j = 0",
+        "variables": [
+          "\\beta_j"
+        ],
+        "description": "Null hypothesis for stepwise feature selection (Eq. (8), page 5)"
+      },
+      {
+        "latex": "r_{zy} = \\dfrac{\\sum_{i=1}^{m} (z_i - \\bar{z})(y_i - \\bar{y})}{\\Big(\\sum_{i=1}^{m} (z_i - \\bar{z})^2\\Big)^{1/2}\\,\\Big(\\sum_{i=1}^{m} (y_i - \\bar{y})^2\\Big)^{1/2}}",
+        "variables": [
+          "r_{zy}",
+          "z",
+          "y",
+          "\\bar{z}",
+          "\\bar{y}",
+          "m"
+        ],
+        "description": "Correlation coefficient guiding forward feature entry (Eq. (9), page 5)"
+      },
+      {
+        "latex": "r = K\\, C_A^2",
+        "variables": [
+          "r",
+          "K",
+          "C_A(t)"
+        ],
+        "description": "Second-order reaction rate for A\\to B (Eq. (10), page 5)"
+      },
+      {
+        "latex": "K = K_0\\, \\exp\\!\\left(-\\dfrac{E}{R\\,T(t)}\\right)",
+        "variables": [
+          "K",
+          "K_0",
+          "E",
+          "R",
+          "T(t)"
+        ],
+        "description": "Arrhenius temperature dependence of rate constant (Eq. (11), page 5)"
+      },
+      {
+        "latex": "\\frac{dC_A(t)}{dt} = \\frac{F}{V_r}\\,\\big(C_0 - C_A(t)\\big)\\; -\\; K_0\\,\\exp\\!\\left(-\\dfrac{E}{R\\,T(t)}\\right)\\,\\big(C_A(t)\\big)^2",
+        "variables": [
+          "C_A(t)",
+          "F",
+          "V_r",
+          "C_0",
+          "K_0",
+          "E",
+          "R",
+          "T(t)"
+        ],
+        "description": "CSTR mass balance for reactant A (Eq. (12), page 6)"
+      },
+      {
+        "latex": "\\frac{dT(t)}{dt} = \\frac{F}{V_r}\\,\\big(T_0 - T(t)\\big)\\; -\\; \\frac{\\Delta H}{\\rho\\,c_p}\\,K_0\\,\\exp\\!\\left(-\\dfrac{E}{R\\,T(t)}\\right)\\,\\big(C_A(t)\\big)^2\\; +\\; \\frac{Q(t)}{\\rho\\,c_p\\,V_r}",
+        "variables": [
+          "T(t)",
+          "F",
+          "V_r",
+          "T_0",
+          "\\Delta H",
+          "\\rho",
+          "c_p",
+          "K_0",
+          "E",
+          "R",
+          "C_A(t)",
+          "Q(t)"
+        ],
+        "description": "CSTR energy balance with external heat input (Eq. (13), page 6)"
+      }
+    ]
+  },
+  {
+    "document_id": "cstr-2",
+    "title": "Analysis and Optimization of a CSTR by Direct Entropy Minimization",
+    "narrative": "The document formulates a thermodynamically-extended nonlinear model of a non-isothermal, jacketed CSTR performing an irreversible, exothermic, first-order reaction A → B. It couples the standard dynamic mass and energy balances with an open-system entropy balance to derive an explicit expression for the reactor’s internal entropy generation rate. Using both direct (analytical) and indirect (linear nonequilibrium) thermodynamic arguments, the paper shows how minimizing entropy generation informs optimal operating conditions; notably, the direct optimization yields the condition T^e = T at the minimum. The model uses feed flowrate, feed temperature, and a heat-transfer term Q̇ = UA(T − T_c) with coolant (jacket) temperature as inputs, and predicts reactor temperature T, outlet concentration C_A, and entropy generation rate σ̇. Table 1 on page 2 lists nominal parameters (V, F^e, C_A^e, T^e, ρ, c_p, E/R, k_0, UA, T_c, ΔH^0, ΔG^0). Figure 1 on page 2 depicts the jacketed CSTR configuration supporting these balances.",
+    "variables": [
+      {
+        "symbol": "V",
+        "definition": "Reactor volume",
+        "description": "Appears in mass and energy balance residence-time terms"
+      },
+      {
+        "symbol": "C_A",
+        "definition": "Concentration of species A in the reactor",
+        "description": "State variable; outlet concentration for a CSTR"
+      },
+      {
+        "symbol": "C_A^{e}",
+        "definition": "Inlet (feed) concentration of species A",
+        "description": "Boundary condition in mass balance"
+      },
+      {
+        "symbol": "F^{e}",
+        "definition": "Feed volumetric flowrate",
+        "description": "Measured input; equals outlet flow F for constant-density liquid phase"
+      },
+      {
+        "symbol": "F",
+        "definition": "Outlet volumetric flowrate",
+        "description": "Often F = F^{e} in this liquid-phase model"
+      },
+      {
+        "symbol": "T",
+        "definition": "Reactor temperature",
+        "description": "State variable; target for regulation"
+      },
+      {
+        "symbol": "T^{e}",
+        "definition": "Feed (inlet) temperature",
+        "description": "Measured input; boundary condition in energy and entropy balances"
+      },
+      {
+        "symbol": "T_c",
+        "definition": "Coolant (jacket) temperature",
+        "description": "Measured input used in heat-transfer term"
+      },
+      {
+        "symbol": "\\rho",
+        "definition": "Liquid density",
+        "description": "Assumed constant; multiplies energy and entropy balances"
+      },
+      {
+        "symbol": "c_p",
+        "definition": "Specific heat capacity at constant pressure",
+        "description": "Assumed constant over the operating range"
+      },
+      {
+        "symbol": "\\dot Q",
+        "definition": "Heat removed/added through the jacket",
+        "description": "Defined by \\dot Q = UA (T − T_c); positive when heat is removed to coolant as per paper’s convention"
+      },
+      {
+        "symbol": "UA",
+        "definition": "Overall heat-transfer coefficient times heat-transfer area",
+        "description": "Heat-transfer parameter coupling reactor and jacket"
+      },
+      {
+        "symbol": "\\Delta H",
+        "definition": "Heat of reaction (reaction enthalpy change)",
+        "description": "Negative for exothermic reaction; may be treated constant over range"
+      },
+      {
+        "symbol": "E",
+        "definition": "Activation energy for the reaction",
+        "description": null
+      },
+      {
+        "symbol": "R",
+        "definition": "Universal gas constant",
+        "description": null
+      },
+      {
+        "symbol": "k_0",
+        "definition": "Arrhenius pre-exponential factor",
+        "description": "First-order kinetics constant factor"
+      },
+      {
+        "symbol": "r",
+        "definition": "Reaction rate per unit volume",
+        "description": "For first-order kinetics: r = k_0 \\exp(-E/(RT)) C_A"
+      },
+      {
+        "symbol": "S",
+        "definition": "Total entropy of the reactor control volume",
+        "description": "Extensive property in the open-system entropy balance"
+      },
+      {
+        "symbol": "s(T)",
+        "definition": "Specific entropy of the stream at temperature T",
+        "description": "Used in inlet/outlet entropy flow terms"
+      },
+      {
+        "symbol": "\\dot \\sigma",
+        "definition": "Internal entropy generation rate within the reactor",
+        "description": "Target output; derived from combined balances"
+      },
+      {
+        "symbol": "\\Delta G_R",
+        "definition": "Gibbs free energy change of reaction",
+        "description": "Thermodynamic driving force for reaction; function of T"
+      },
+      {
+        "symbol": "\\Delta H_R",
+        "definition": "Enthalpy change of reaction",
+        "description": "Used in Gibbs–Helmholtz relation"
+      },
+      {
+        "symbol": "n_A",
+        "definition": "Moles of species A in the reactor",
+        "description": "Used in the total differential of S(T,n_A,n_B)"
+      },
+      {
+        "symbol": "n_B",
+        "definition": "Moles of species B in the reactor",
+        "description": "Used in the total differential of S(T,n_A,n_B)"
+      },
+      {
+        "symbol": "J",
+        "definition": "Generalized flow (rate) in linear nonequilibrium formulation",
+        "description": "For reaction, J corresponds to r (per unit volume)"
+      },
+      {
+        "symbol": "X",
+        "definition": "Thermodynamic driving force in linear nonequilibrium formulation",
+        "description": "For reaction, X = \\Delta G_R/T"
+      },
+      {
+        "symbol": "L",
+        "definition": "Phenomenological conductance",
+        "description": "L = 1/R_{resistance}; positive by second law"
+      }
+    ],
+    "equations": [
+      {
+        "latex": "r = k_0 \\, \\exp\\!\\left(-\\frac{E}{R T}\\right) \\, C_A",
+        "variables": [
+          "r",
+          "k_0",
+          "E",
+          "R",
+          "T",
+          "C_A"
+        ],
+        "description": "First-order Arrhenius reaction rate"
+      },
+      {
+        "latex": "\\dot Q = UA\\,(T - T_c)",
+        "variables": [
+          "\\dot Q",
+          "UA",
+          "T",
+          "T_c"
+        ],
+        "description": "Heat transfer between reactor and coolant jacket"
+      },
+      {
+        "latex": "\\frac{d C_A}{d t} = \\frac{F^{e}}{V} \\left(C_A^{e} - C_A \\right) - k_0 \\, \\exp\\!\\left(-\\frac{E}{R T}\\right) \\, C_A",
+        "variables": [
+          "C_A",
+          "t",
+          "F^{e}",
+          "V",
+          "C_A^{e}",
+          "k_0",
+          "E",
+          "R",
+          "T"
+        ],
+        "description": "Dynamic mass balance for species A in the CSTR"
+      },
+      {
+        "latex": "\\rho c_p \\, \\frac{d T}{d t} = \\rho c_p \\, \\frac{F^{e}}{V} (T^{e} - T) + (-\\Delta H)\\, k_0 \\, \\exp\\!\\left(-\\frac{E}{R T}\\right) C_A - \\frac{\\dot Q}{V}",
+        "variables": [
+          "\\rho",
+          "c_p",
+          "T",
+          "t",
+          "F^{e}",
+          "V",
+          "T^{e}",
+          "\\Delta H",
+          "k_0",
+          "E",
+          "R",
+          "C_A",
+          "\\dot Q"
+        ],
+        "description": "Dynamic energy balance; heat removal sign consistent with \\dot Q definition"
+      },
+      {
+        "latex": "\\frac{d S}{d t} = -\\frac{\\dot Q}{T} + \\rho F^{e} \\, s(T^{e}) - \\rho F \\, s(T) + \\rho \\, \\dot \\sigma",
+        "variables": [
+          "S",
+          "t",
+          "\\dot Q",
+          "T",
+          "\\rho",
+          "F^{e}",
+          "s",
+          "T^{e}",
+          "F",
+          "\\dot \\sigma"
+        ],
+        "description": "Open-system entropy balance used to derive internal entropy generation"
+      },
+      {
+        "latex": "\\left(\\frac{\\partial S}{\\partial T}\\right)_{V} = \\frac{\\rho c_p}{T}",
+        "variables": [
+          "S",
+          "T",
+          "\\rho",
+          "c_p"
+        ],
+        "description": "Thermodynamic relation used in entropy-balance manipulation"
+      },
+      {
+        "latex": "\\dot \\sigma = \\rho\\Bigg[\\; F^{e} c_p \\ln\\!\\left(\\frac{T^{e}}{T}\\right) + r V \\left(-\\frac{\\Delta G_R}{T}\\right) + \\dot Q \\left(\\frac{1}{T_c} - \\frac{1}{T}\\right) \\Bigg]",
+        "variables": [
+          "\\dot \\sigma",
+          "\\rho",
+          "F^{e}",
+          "c_p",
+          "T^{e}",
+          "T",
+          "r",
+          "V",
+          "\\Delta G_R",
+          "\\dot Q",
+          "T_c"
+        ],
+        "description": "Explicit internal entropy generation rate for the CSTR (Eq. 11 in the paper)"
+      },
+      {
+        "latex": "\\left( \\frac{\\partial}{\\partial T} \\frac{\\Delta G_R}{T} \\right)_{P} = -\\frac{\\Delta H_R}{T^{2}}",
+        "variables": [
+          "\\Delta G_R",
+          "T",
+          "\\Delta H_R"
+        ],
+        "description": "Gibbs–Helmholtz relation used to evaluate the driving force \\Delta G_R/T (Eq. 12)"
+      },
+      {
+        "latex": "J = \\frac{X}{R_{res}}",
+        "variables": [
+          "J",
+          "X"
+        ],
+        "description": "Linear relation between flow and driving force (Eq. 13), with R_{res} the resistance"
+      },
+      {
+        "latex": "J = L \\, X",
+        "variables": [
+          "J",
+          "L",
+          "X"
+        ],
+        "description": "Phenomenological linear law with conductance L = 1/R_{res} (Eq. 14)"
+      },
+      {
+        "latex": "\\dot \\sigma = J X = L X^{2}",
+        "variables": [
+          "\\dot \\sigma",
+          "J",
+          "X",
+          "L"
+        ],
+        "description": "Specific entropy production in linear nonequilibrium thermodynamics (Eq. 15)"
+      },
+      {
+        "latex": "T^{e} = T",
+        "variables": [
+          "T^{e}",
+          "T"
+        ],
+        "description": "Analytical optimality condition from direct entropy minimization (minimum \\dot \\sigma) reported in the paper"
+      }
+    ]
+  }
+]

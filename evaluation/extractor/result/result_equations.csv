@@ -1,0 +1,39 @@
+﻿doc_index,target_type,precision,recall,f1,accuracy,tp,fp,fn,reasoning
+0,equations,0.9167,0.7857,0.8462,0.7857,11,1,3,"
+1. The extracted equations matched exactly with equations 1, 2, 3, 4, 5, 6, 7, 10, 11, 12, and 13 from the ground truth, highlighting the accuracy of the prediction model.
+
+2. The discrepancies arose with the following:  
+   - **Eq. 8 (Prediction)** ""H_0: β_j = 0"" doesn’t match any ground truth equation. Instead, the corresponding ground truth Eq. uses ""\gamma_j = 0"".
+   - **Eq. 9 (Prediction)** 
+     - Discrepancy: Different description and representation of independent and dependent variable correlation.
+     
+
+3. **False Negatives**: Missed equations from ground truth:  
+   - Equation 8 in ground truth (""\gamma_j = 0"") not predicted correctly.
+   - Equation 14 in ground truth ""\Theta(x, u)"" (missing in predictions)
+
+4. **False Positives**: The prediction contains one false positive, the incorrect equation labeled 8 comparing β_j.
+
+5. **Variables Match:**  
+   - Most equations matched the variables from the ground truth except for some minor differences, showing high accuracy in variable identification.
+
+Overall, the extraction of equations is effective with slight misalignment in null hypothesis representation and one incorrect candidate function equation. Improvements could center around maintaining consistency in the extraction of detailed descriptions and accounting for mathematically equivalent yet differently represented expressions where possible."
+1,equations,0.5,0.2631578947368421,0.3448275862068966,0.21739130434782608,5,5,14,"1. Comparisons based on LaTeX format, variables, and description:
+   - **Matched Equations (True Positives):**
+     - Prediction Eq with ""\dot{\sigma} = J X = L X^{2}"" matches one of Ground Truth Eq.
+     - Prediction Eq ""J = L \ X"" matches similar conceptual representation in one of Ground Truth Eq.
+     - Prediction Eq ""\left( \frac{\partial}{\partial T} \frac{\Delta G_R}{T} \right)_{P} = -\frac{\Delta H_R}{T^{2}}"" matches a Ground Truth Eq expressing Gibbs–Helmholtz relation.
+     - Prediction Eq ""r = k_0 \, \exp\!\left(-\frac{E}{R T}\right) \, C_A"" matches kinetic rate form in Ground Truth Eq.
+     - Prediction Eq ""\left(\frac{\partial S}{\partial T}\right)_{V} = \frac{\rho c_p}{T}"" physicochemically matches a Ground Truth.
+
+   - **Missed Matches (False Negatives):**
+     - Several complex entropic or Gibbs-related expressions that require deep LaTeX normalization to match.
+     - Equations involving interaction terms of multiple differentiative variables not detected.
+
+   - **Extractions without Match (False Positives):**
+     - Similar conceptual equations extracted but without LaTeX match, e.g., presence of alternate descriptions or formula deviations.
+     - Different integration constant use; e.g., alternate scaling or simplified forms.
+
+2. 
+  Performance metrics highlighted the challenges of complex LaTeX equation equivalence and detailed variable mapping which missed nuanced mathematically equivalent forms.
+"

@@ -1,0 +1,480 @@
+{
+  "documents": {
+    "cstr-1": {
+      "doc_id": "cstr-1",
+      "title": "Machine learning-based adaptive model identification of systems: Application to a chemical process",
+      "summary": "The document develops an adaptive, physics-guided data-driven framework to identify nonlinear dynamic models using sparse regression and feature selection, and demonstrates it on a non-isothermal CSTR with an exothermic second-order reaction. The three-step procedure is: (1) offline Sparse Identification of Nonlinear Dynamics (SINDy) to select candidate functions from a large library; (2) online ordinary least-squares to re-estimate coefficients as new data arrive; and (3) stepwise feature selection to retain only statistically significant terms. The approach balances model parsimony and predictive accuracy using an error trigger. The CSTR case includes Arrhenius temperature dependence in the library and uses coupled mass and energy balances to generate training/validation data. Figure 1 on page 4 presents the flowchart of the methodology. The governing first-principles CSTR balances are given in Eqs. (12)–(13) on page 6, with simulation parameters summarized in Table 1 on page 6. Table 2 on page 6 lists the true functional coefficients used for benchmarking sparse recovery. Figures 4–7 on pages 8–11 show that the adaptive method identifies compact models with substantially lower prediction error than SINDy using the same or even much larger datasets."
+    },
+    "cstr-2": {
+      "doc_id": "cstr-2",
+      "title": "Analysis and Optimization of a CSTR by Direct Entropy Minimization",
+      "summary": "The document formulates a thermodynamically-extended nonlinear model of a non-isothermal, jacketed CSTR performing an irreversible, exothermic, first-order reaction A → B. It couples the standard dynamic mass and energy balances with an open-system entropy balance to derive an explicit expression for the reactor’s internal entropy generation rate. Using both direct (analytical) and indirect (linear nonequilibrium) thermodynamic arguments, the paper shows how minimizing entropy generation informs optimal operating conditions; notably, the direct optimization yields the condition T^e = T at the minimum. The model uses feed flowrate, feed temperature, and a heat-transfer term Q̇ = UA(T − T_c) with coolant (jacket) temperature as inputs, and predicts reactor temperature T, outlet concentration C_A, and entropy generation rate σ̇. Table 1 on page 2 lists nominal parameters (V, F^e, C_A^e, T^e, ρ, c_p, E/R, k_0, UA, T_c, ΔH^0, ΔG^0). Figure 1 on page 2 depicts the jacketed CSTR configuration supporting these balances."
+    }
+  },
+  "variables": {
+    "var_0001": {
+      "variable_id": "var_0001",
+      "symbol": "t",
+      "definition": "Time",
+      "description": "Independent variable for the dynamic model",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Used throughout for state evolution and sampling (cstr-1 Eqs. (1)–(7))",
+        "Appears in CSTR balances and entropy balance (cstr-2)"
+      ]
+    },
+    "var_0002": {
+      "variable_id": "var_0002",
+      "symbol": "V",
+      "definition": "Reactor volume",
+      "description": "Liquid-phase CSTR control volume (constant)",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Called V_r in cstr-1 (mass/energy balances Eqs. (12)–(13))",
+        "Called V in cstr-2 (balances and entropy expression)"
+      ]
+    },
+    "var_0003": {
+      "variable_id": "var_0003",
+      "symbol": "C_A(t)",
+      "definition": "Concentration of reactant A in the reactor",
+      "description": "State variable; equals outlet concentration for a CSTR",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "State in mass balance Eq. (12) (cstr-1)",
+        "Outlet equals reactor concentration for a CSTR (cstr-2 variable note)"
+      ]
+    },
+    "var_0004": {
+      "variable_id": "var_0004",
+      "symbol": "C_A_in",
+      "definition": "Feed (inlet) concentration of A",
+      "description": "Boundary condition in mass balance",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Denoted C_0 in cstr-1 (Table 1, Eq. (12))",
+        "Denoted C_A^{e} in cstr-2 (mass balance)"
+      ]
+    },
+    "var_0005": {
+      "variable_id": "var_0005",
+      "symbol": "F_in(t)",
+      "definition": "Feed volumetric flowrate",
+      "description": "Measured input; for constant-density liquid, outlet flow equals feed flow",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Denoted F in cstr-1 (Eqs. (12)–(13))",
+        "Denoted F^{e} in cstr-2 (balances, entropy balance)"
+      ]
+    },
+    "var_0006": {
+      "variable_id": "var_0006",
+      "symbol": "T(t)",
+      "definition": "Reactor temperature",
+      "description": "State variable to be regulated",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Energy balance Eq. (13) (cstr-1)",
+        "State and target in cstr-2 (balances, heat transfer)"
+      ]
+    },
+    "var_0007": {
+      "variable_id": "var_0007",
+      "symbol": "T_in(t)",
+      "definition": "Feed (inlet) temperature",
+      "description": "Measured input; boundary condition in energy and entropy balances",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Denoted T_0 in cstr-1 (Eq. (13))",
+        "Denoted T^{e} in cstr-2 (energy and entropy balances)"
+      ]
+    },
+    "var_0008": {
+      "variable_id": "var_0008",
+      "symbol": "T_c(t)",
+      "definition": "Coolant (jacket) temperature",
+      "description": "Measured input affecting heat transfer",
+      "documents": [
+        "cstr-2"
+      ],
+      "contexts": [
+        "Appears in jacket heat exchange \\dot Q = UA (T - T_c) (cstr-2)"
+      ]
+    },
+    "var_0009": {
+      "variable_id": "var_0009",
+      "symbol": "Q(t)",
+      "definition": "Net heat duty to the reactor (positive adds heat to reactor)",
+      "description": "Measured/manipulated input; related to jacket heat transfer if UA model is used",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Appears as applied heat input with positive sign in energy balance (cstr-1 Eq. (13))",
+        "Related to cstr-2 convention by Q = -\\dot Q, where \\dot Q = UA (T - T_c) is positive for heat removal"
+      ]
+    },
+    "var_0010": {
+      "variable_id": "var_0010",
+      "symbol": "\\rho",
+      "definition": "Liquid density",
+      "description": "Assumed constant",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Energy balance parameter (cstr-1 Eq. (13))",
+        "Appears in energy and entropy balances (cstr-2)"
+      ]
+    },
+    "var_0011": {
+      "variable_id": "var_0011",
+      "symbol": "c_p",
+      "definition": "Specific heat capacity at constant pressure",
+      "description": "Assumed constant over operating range",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Energy balance parameter (cstr-1 Eq. (13))",
+        "Appears in energy and entropy balances (cstr-2)"
+      ]
+    },
+    "var_0012": {
+      "variable_id": "var_0012",
+      "symbol": "\\Delta H",
+      "definition": "Heat of reaction (reaction enthalpy change)",
+      "description": "Negative for exothermic reaction; used in energy balance",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Energy source term multiplier (cstr-1 Eq. (13))",
+        "Appears with sign convention (-\\Delta H) in cstr-2 energy balance"
+      ]
+    },
+    "var_0013": {
+      "variable_id": "var_0013",
+      "symbol": "E",
+      "definition": "Activation energy",
+      "description": "Appears in Arrhenius temperature dependence",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Used in Arrhenius expressions (cstr-1 Eq. (11))",
+        "Used in Arrhenius expressions (cstr-2)"
+      ]
+    },
+    "var_0014": {
+      "variable_id": "var_0014",
+      "symbol": "R",
+      "definition": "Universal gas constant",
+      "description": "Arrhenius parameter",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "In Arrhenius temperature dependence (both docs)"
+      ]
+    },
+    "var_0015": {
+      "variable_id": "var_0015",
+      "symbol": "k_0",
+      "definition": "Arrhenius pre-exponential factor",
+      "description": "Units depend on reaction order (1/h for first order; 1/(h·(kmol/m^3)) for second order)",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Denoted K_0 in cstr-1 (Table 1)",
+        "Denoted k_0 in cstr-2 (first-order kinetics)"
+      ]
+    },
+    "var_0016": {
+      "variable_id": "var_0016",
+      "symbol": "k(T(t))",
+      "definition": "Temperature-dependent rate constant",
+      "description": "Arrhenius form function of reactor temperature",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "K(T) in cstr-1 (Eq. (11))",
+        "k(T) in cstr-2 (rate law)"
+      ]
+    },
+    "var_0017": {
+      "variable_id": "var_0017",
+      "symbol": "r",
+      "definition": "Reaction rate per unit reactor volume",
+      "description": "Kinetic rate of A consumption; see rate-law equations for order",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Second-order case r = K C_A^2 (cstr-1)",
+        "First-order case r = k C_A (cstr-2)"
+      ]
+    },
+    "var_0018": {
+      "variable_id": "var_0018",
+      "symbol": "UA",
+      "definition": "Overall heat-transfer coefficient times heat-transfer area",
+      "description": "Parameter for jacket heat exchange model",
+      "documents": [
+        "cstr-2"
+      ],
+      "contexts": [
+        "Defines \\dot Q = UA (T - T_c) (cstr-2)"
+      ]
+    },
+    "var_0019": {
+      "variable_id": "var_0019",
+      "symbol": "\\Delta G_R(T)",
+      "definition": "Gibbs free energy change of reaction at temperature T",
+      "description": "Thermodynamic driving force used in entropy generation",
+      "documents": [
+        "cstr-2"
+      ],
+      "contexts": [
+        "Appears in entropy generation and Gibbs–Helmholtz relation (cstr-2)"
+      ]
+    },
+    "var_0020": {
+      "variable_id": "var_0020",
+      "symbol": "\\Delta H_R",
+      "definition": "Enthalpy change of reaction",
+      "description": "Used in Gibbs–Helmholtz relation for \\Delta G_R/T",
+      "documents": [
+        "cstr-2"
+      ],
+      "contexts": [
+        "Thermodynamic relation (cstr-2 Eq. (12))"
+      ]
+    },
+    "var_0021": {
+      "variable_id": "var_0021",
+      "symbol": "\\dot\\sigma(t)",
+      "definition": "Internal entropy generation rate of the reactor",
+      "description": "Target output capturing irreversibility from mixing, reaction, and heat transfer",
+      "documents": [
+        "cstr-2"
+      ],
+      "contexts": [
+        "Explicit expression provided (cstr-2 Eq. (11)); adapted here to canonical Q sign"
+      ]
+    },
+    "var_0022": {
+      "variable_id": "var_0022",
+      "symbol": "C_{A,\\mathrm{out}}(t)",
+      "definition": "Outlet concentration of A",
+      "description": "For an ideal CSTR, equals reactor concentration",
+      "documents": [
+        "cstr-2"
+      ],
+      "contexts": [
+        "Outlet equals reactor concentration (cstr-2 variable description for C_A)"
+      ]
+    }
+  },
+  "equations": {
+    "eq_0001": {
+      "equation_id": "eq_0001",
+      "latex": "\\frac{d C_A(t)}{d t} = \\frac{F_{in}(t)}{V}\\,\\big(C_{A\\!,in} - C_A(t)\\big)\\; -\\; r",
+      "variables": [
+        "C_A(t)",
+        "t",
+        "F_in(t)",
+        "V",
+        "C_A_in",
+        "r"
+      ],
+      "description": "CSTR mass balance for reactant A with a generic rate r",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Structure matches cstr-1 Eq. (12) and cstr-2 mass balance; here unified with F_{in}, C_{A,in}, V"
+      ]
+    },
+    "eq_0002": {
+      "equation_id": "eq_0002",
+      "latex": "\\frac{d T(t)}{d t} = \\frac{F_{in}(t)}{V}\\,\\big(T_{in}(t) - T(t)\\big)\\; -\\; \\frac{\\Delta H}{\\rho\\,c_p}\\, r\\; +\\; \\frac{Q(t)}{\\rho\\,c_p\\,V}",
+      "variables": [
+        "T(t)",
+        "t",
+        "F_in(t)",
+        "V",
+        "T_in(t)",
+        "\\Delta H",
+        "\\rho",
+        "c_p",
+        "r",
+        "Q(t)"
+      ],
+      "description": "CSTR energy balance with canonical heat duty Q(t) positive for heat input",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Matches cstr-1 Eq. (13) sign convention for Q; equivalent to cstr-2 when using Q = -\\dot Q"
+      ]
+    },
+    "eq_0003": {
+      "equation_id": "eq_0003",
+      "latex": "k\\big(T(t)\\big) = k_0\\, \\exp\\!\\left(-\\dfrac{E}{R\\,T(t)}\\right)",
+      "variables": [
+        "k(T(t))",
+        "k_0",
+        "E",
+        "R",
+        "T(t)"
+      ],
+      "description": "Arrhenius temperature dependence of the rate constant",
+      "documents": [
+        "cstr-1",
+        "cstr-2"
+      ],
+      "contexts": [
+        "Directly from cstr-1 Eq. (11) and cstr-2 reaction rate definition"
+      ]
+    },
+    "eq_0004": {
+      "equation_id": "eq_0004",
+      "latex": "r = k\\big(T(t)\\big)\\, C_A(t)",
+      "variables": [
+        "r",
+        "k(T(t))",
+        "C_A(t)"
+      ],
+      "description": "First-order reaction rate option",
+      "documents": [
+        "cstr-2"
+      ],
+      "contexts": [
+        "As in cstr-2 (A \\to B irreversible first-order)"
+      ]
+    },
+    "eq_0005": {
+      "equation_id": "eq_0005",
+      "latex": "r = k\\big(T(t)\\big)\\, \\big(C_A(t)\\big)^2",
+      "variables": [
+        "r",
+        "k(T(t))",
+        "C_A(t)"
+      ],
+      "description": "Second-order reaction rate option",
+      "documents": [
+        "cstr-1"
+      ],
+      "contexts": [
+        "As in cstr-1 (A \\to B second-order kinetics)"
+      ]
+    },
+    "eq_0006": {
+      "equation_id": "eq_0006",
+      "latex": "Q(t) = -\\, UA\\,\\big( T(t) - T_c(t) \\big)",
+      "variables": [
+        "Q(t)",
+        "UA",
+        "T(t)",
+        "T_c(t)"
+      ],
+      "description": "Jacket heat-transfer relation mapped to canonical Q sign (positive adds heat to reactor)",
+      "documents": [
+        "cstr-2"
+      ],
+      "contexts": [
+        "From cstr-2 \\dot Q = UA (T - T_c) with \\dot Q positive for heat removal; thus Q = -\\dot Q"
+      ]
+    },
+    "eq_0007": {
+      "equation_id": "eq_0007",
+      "latex": "\\dot\\sigma(t) = \\rho\\,\\Bigg[\\; F_{in}(t)\\, c_p\\, \\ln\\!\\left(\\frac{T_{in}(t)}{T(t)}\\right)\\; +\\; r\\, V\\,\\left(-\\frac{\\Delta G_R\\big(T(t)\\big)}{T(t)}\\right)\\; +\\; Q(t)\\,\\left(\\frac{1}{T(t)} - \\frac{1}{T_c(t)}\\right) \\Bigg]",
+      "variables": [
+        "\\dot\\sigma(t)",
+        "\\rho",
+        "F_in(t)",
+        "c_p",
+        "T_in(t)",
+        "T(t)",
+        "r",
+        "V",
+        "\\Delta G_R(T)",
+        "Q(t)",
+        "T_c(t)"
+      ],
+      "description": "Internal entropy generation rate combining mixing (inlet/outlet), reaction affinity, and heat transfer",
+      "documents": [
+        "cstr-2"
+      ],
+      "contexts": [
+        "Based on cstr-2 Eq. (11); rewritten using canonical Q with Q = -\\dot Q so the heat-transfer term becomes Q(1/T - 1/T_c)"
+      ]
+    },
+    "eq_0008": {
+      "equation_id": "eq_0008",
+      "latex": "\\left( \\frac{\\partial}{\\partial T} \\frac{\\Delta G_R(T)}{T} \\right)_{P} = -\\frac{\\Delta H_R}{T^{2}}",
+      "variables": [
+        "\\Delta G_R(T)",
+        "T",
+        "\\Delta H_R"
+      ],
+      "description": "Gibbs–Helmholtz relation for evaluating the reaction driving force",
+      "documents": [
+        "cstr-2"
+      ],
+      "contexts": [
+        "Directly from cstr-2 Eq. (12)"
+      ]
+    },
+    "eq_0009": {
+      "equation_id": "eq_0009",
+      "latex": "C_{A,\\mathrm{out}}(t) = C_A(t)",
+      "variables": [
+        "C_{A,\\mathrm{out}}(t)",
+        "C_A(t)"
+      ],
+      "description": "CSTR outlet concentration equals reactor concentration",
+      "documents": [
+        "cstr-2"
+      ],
+      "contexts": [
+        "Standard CSTR assumption noted in cstr-2 (C_A is both reactor and outlet concentration)"
+      ]
+    }
+  }
+}

@@ -1,14 +1,31 @@
-## AutoPMoB Agent
+# AutoPMoB Agent
 
-An experimental workflow for extracting mathematical relations from PDFs and assembling
-candidate process models with LangChain + OpenAI. The core logic lives in
-`scripts/model_builder_agent.py`, which orchestrates three LLM-driven stages:
+AutoPMoB Agent turns technical PDFs into candidate process models by running a
+three-stage LangChain + OpenAI workflow. Each stage is prompt-driven and
+validated with Pydantic so that the final output is a consistent knowledge base
+(variables, equations, document narratives) plus model proposals tied to a
+specific engineering objective.
 
-1. **Extractor** – reads PDFs and returns narratives, variables, and equations.
-2. **DBOrganizer** – harmonizes extracted variables/equations across documents.
-3. **ModelBuilder** – combines the organized knowledge into objective-specific models.
+```
+PDFs ──► Extractor ──► DBOrganizer ──► ModelBuilder ──► WorkflowOutput
+           │              │                │
+           │              │                └─ ranked model candidates
+           │              └─ harmonized variable/equation graph
+           └─ document narratives + raw math extractions
+```
 
-Every stage is prompt-driven; prompts are stored as YAML files under `prompts/`.
+## Key Features
+- **End-to-end automation** – ingest one or more PDFs, extract math objects, and
+  assemble objective-aware model alternatives.
+- **Prompt configurability** – each stage uses a dedicated YAML (system +
+  human) template with placeholders such as `{objective}`, `{documents}`,
+  `{db_snapshot}`, or `{num_models}`.
+- **Structured guarantees** – responses are parsed into strongly typed models
+  (Pydantic) so downstream tooling can rely on consistent JSON.
+- **Traceable artifacts** – optional stage I/O dumps keep a copy of every LLM
+  request/response for auditability.
+
+See [README_JP.md](README_JP.md) for the Japanese edition.
 
 ---
 
@@ -16,81 +33,104 @@ Every stage is prompt-driven; prompts are stored as YAML files under `prompts/`.
 
 ```
 autopmob-agent/
-├── configs/          # Workflow configs (documents, objective, prompt paths)
-├── data/             # PDFs or other inputs referenced by configs
-├── prompts/          # YAML prompt templates (system + human per stage)
-├── results/          # Run outputs (auto-created)
+├── configs/          # Workflow configs (documents, objectives, prompt paths)
+├── data/             # PDFs referenced by configs (place your own files here)
+├── prompts/          # YAML prompt templates per stage (e.g., prompts/type_1/*)
+├── results/          # Auto-created run outputs
 ├── scripts/
-│   └── model_builder_agent.py  # Main workflow
+│   └── model_builder_agent.py  # Main workflow entry point
 ├── README.md
 └── README_JP.md
 ```
 
 ---
 
-## Prompt Files
+## Prerequisites
+- Python **3.11+**
+- [uv](https://github.com/astral-sh/uv) for dependency management (recommended)
+- OpenAI API access with compatible `gpt-5` (or override via config)
+- PDF files that describe the process/system you want to model
 
-Each stage uses a YAML file containing a `system` and `human` string:
+Set your credentials before running:
 
-```yaml
-system: |-
-  System-role text...
-human: |-
-  Human-role template with placeholders.
+```bash
+cp .env.example .env  # if you keep a template
+echo "OPENAI_API_KEY=sk-..." >> .env
 ```
 
-Placeholders such as `{objective}`, `{doc_id}`, `{title}`, `{documents}`,
-`{db_snapshot}`, or `{num_models}` are injected by the workflow depending on stage.
-Required placeholders per stage:
+The script automatically loads `.env` via `python-dotenv`.
 
-- **Extractor**: `{objective}`, `{doc_id}`, `{title}` (and the attachment is added automatically).
-- **DBOrganizer**: `{objective}`, `{documents}`.
-- **ModelBuilder**: `{objective}`, `{db_snapshot}`, `{num_models}`.
+Install dependencies:
 
-Example files:
-
-```
-prompts/
-  extractor.yaml
-  organizer.yaml
-  model_builder.yaml
+```bash
+uv sync  # or `uv pip install -r requirements.txt` if you prefer pip tools
 ```
 
 ---
 
-## Config Format
+## Preparing a Workflow Config
 
-Create a YAML config in `configs/` (see `configs/cstr-sample.yaml`). Required fields:
+All runs are driven by a YAML config under `configs/`. Start from
+`configs/cstr-sample.yaml` and customize the following fields:
+
+| Section | Required | Description |
+|---------|----------|-------------|
+| `pdf` | ✅ | List of `{path, doc_id?}` entries. Paths can be relative to the repo or absolute. `doc_id` is optional but helps track provenance. |
+| `objective.description` | ✅ | Free-form text describing what the model should achieve. |
+| `objective.input_variables` | optional | Measured inputs you expect to use. |
+| `objective.output_variables` | optional | Controlled/observed outputs. |
+| `objective.success_criteria` | optional | Additional guidance for the LLM. |
+| `max_models` | optional (default 3) | Target number of model candidates. |
+| `model_name` | optional | OpenAI chat model to call (defaults to `gpt-5`). |
+| `temperature` | optional | LLM sampling temperature (float). |
+| `prompts.extractor`, `prompts.organizer`, `prompts.model_builder` | ✅ | File path or inline mapping containing `system` and `human` strings. |
+
+Minimal example:
 
 ```yaml
 pdf:
-  - path: data/.../paper1.pdf
-    doc_id: cstr-1
+  - path: data/example/paper.pdf
+    doc_id: case-1
 
 objective:
   description: >
-    Build a physical model for ...
-  input_variables:
-    - feed_flowrate
-  output_variables:
-    - reactor_temperature
+    Build a nonlinear CSTR model capturing heat and mass balances.
+  input_variables: [feed_flowrate, coolant_flowrate]
+  output_variables: [reactor_temperature]
   success_criteria: >
-    Provide at least two candidate model structures...
+    Provide at least two model structures and highlight assumptions.
 
-max_models: 3
+max_models: 2
 model_name: gpt-5
 temperature: 0.2
 
 prompts:
-  extractor: prompts/extractor.yaml
-  organizer: prompts/organizer.yaml
-  model_builder: prompts/model_builder.yaml
+  extractor: prompts/type_1/extractor.yaml
+  organizer: prompts/type_1/organizer.yaml
+  model_builder: prompts/type_1/model_builder.yaml
 ```
 
-Notes:
-- PDF paths can be absolute or relative to the repo root (`~/Dropbox/.../autopmob-agent`).
-- At least one document is required; `doc_id` is optional.
-- Prompt paths are **mandatory**; the script does not ship with embedded defaults.
+### Prompt Format
+
+Each prompt file contains two top-level keys:
+
+```yaml
+system: |-
+  System-role instructions...
+human: |-
+  Human-role template using placeholders like {objective} or {documents}
+```
+
+Required placeholders:
+
+- **Extractor** – `{objective}`, `{doc_id}`, `{title}` (the PDF itself is sent
+  automatically as a file message).
+- **DBOrganizer** – `{objective}`, `{documents}` (JSON string with per-doc
+  narratives/extractions).
+- **ModelBuilder** – `{objective}`, `{db_snapshot}`, `{num_models}`.
+
+You can inline the YAML directly into the config (instead of referencing a
+file) if needed.
 
 ---
 
@@ -107,38 +147,47 @@ uv run python scripts/model_builder_agent.py \
 
 | Flag | Description |
 |------|-------------|
-| `--config`      | **Required.** Path to the workflow YAML. |
-| `--results-dir` | Parent directory for run folders (default `results/`). |
-| `--run-name`    | Optional name for the run folder; timestamp is used if omitted. |
-| `--save-stage-io` | When provided, saves each stage's input/output JSON under `artifacts/`. |
+| `--config PATH` | **Required.** Workflow config file. |
+| `--results-dir PATH` | Target directory for runs (default `results/`). |
+| `--run-name NAME` | Optional folder name. Timestamp-based if omitted. |
+| `--save-stage-io` | When set, stores each stage's input/output into `artifacts/`. |
+
+The script streams logs to stdout and prints the final `WorkflowOutput`
+(`organized_corpus` + `models`) as JSON.
 
 ---
 
-## Output Structure
+## Output Artifacts
 
-Each run creates `results/<run_name>/` containing:
+Each run produces `results/<run_name>/`:
 
-- `results/documents/*.json` – one file per PDF. Each file includes:
-  - Document narrative summary.
-  - Raw extraction for that document.
-  - Harmonized variables/equations touching that document.
-- `results/models/models.json` – candidate models returned by the ModelBuilder stage.
-- `results.json` – index referencing the per-document files and models.
-- `config_<original>.yaml` – copy of the config used for traceability.
-- `artifacts/` (optional) – stage-by-stage inputs/outputs when `--save-stage-io` is set.
+- `results.json` – canonical `WorkflowOutput`.
+- `results/documents/*.json` – per-PDF breakdown: narratives, raw extractions,
+  and references to harmonized graph entries.
+- `results/models/models.json` – list of generated candidate models.
+- `config_<original>.yaml` – exact config used for reproducibility.
+- `artifacts/*.json` – optional stage dumps when `--save-stage-io` is enabled
+  (`extractor_input.json`, `db_organizer_output.json`, etc.).
 
-The aggregated `WorkflowOutput` (organized corpus + models) is still printed to stdout.
+These files can be diffed across runs to evaluate prompt tweaks or document
+changes.
 
 ---
 
 ## Development Notes
 
-- Python `>= 3.11` (see `pyproject.toml`).
-- Dependencies are managed with [uv](https://github.com/astral-sh/uv) and declared in `pyproject.toml`.
-- Key libraries: `langchain`, `langchain-openai`, `openai`, `PyYAML`.
+- Python dependencies are declared in `pyproject.toml`; use `uv sync` or your
+  preferred workflow.
+- The CLI lives in `scripts/model_builder_agent.py`. The pipeline is composed of
+  `Extractor`, `DBOrganizer`, and `ModelBuilder` classes.
+- Logging defaults to INFO. Set `LOGLEVEL=DEBUG` (or configure logging manually)
+  for verbose traces.
+- Run `uv run python scripts/model_builder_agent.py --help` for the latest CLI
+  usage.
 
 ---
 
-## Japanese Documentation
+## Localization
 
-A full Japanese translation is available in [README_JP.md](README_JP.md).
+The Japanese translation of this README is maintained at
+[README_JP.md](README_JP.md). Keep both files in sync when making doc updates.

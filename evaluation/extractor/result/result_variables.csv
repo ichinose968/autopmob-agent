@@ -1,0 +1,75 @@
+﻿doc_index,target_type,precision,recall,f1,accuracy,tp,fp,fn,reasoning
+0,variables,0.7333333333333333,0.6666666666666666,0.6984126984126984,0.6111111111111112,22,8,11,"1. Symbol matching allowed synonymous LaTeX notations and near synonyms: 
+   - Ground truth `x(t)` matched with prediction `x(t)`.
+   - Ground truth `u(t)` matched with prediction `u(t)`.
+   - Ground truth `f(x(t),u(t))` matched with prediction `f(x,u)`.
+   - Ground truth `\dot{X}` matched with prediction `\dot{\mathbf{X}}`.
+   - Ground truth `\Theta(X,U)` matched with prediction `\Theta(\mathbf{X},\mathbf{U})`.
+   - Ground truth `E` matched with prediction `E`; slight difference in units as (kJ/kmol) is considered synonymous.
+   - Ground truth `Q(t)` matched with prediction `Q(t)` despite description differences. 
+   
+2. Definition and description clarifications:
+   - Ground truth `X` matched with prediction `\mathbf{X}` based on near synonymity in definition.
+   - Ground truth `U` matched with prediction `\mathbf{U}` as they both define a snapshot matrix.
+   - Ground truth `\Sigma` matched with prediction `\Xi` based on synonymous definition for sparse regression coefficient matrix.
+   - Variables `\gamma_j` vs `\beta_j` were not perfectly matched; predictions provided a different regressor structure.
+
+3. Failures: 
+   - No prediction for ground truth `\lambda` as prediction `\lambda` concerned thresholding parameter.
+   - No matching prediction for ground truth `V_r` and `K`; though `R` and `K_0` had definitions.
+   - Outlier matches happened for `z_j` and `L`, showing variable mismatch.
+
+Thus, the scores reflect incomplete overlap in correct predictions. Symbol, definition, and description matches allowed a comprehensive evaluation beyond apparent mismatches."
+1,variables,0.8,0.7777777777777778,0.7887323943661971,0.725,28,7,8,"
+Comparison between the 'Ground Truth' variables and the 'Prediction' variables:
+
+True Positives (TP):
+1. V: Reactor volume
+2. C_A: Concentration of species A in the reactor
+3. C_A^{e}: Inlet concentration of species A
+4. F^{e}: Volumetric feed flow rate
+5. T: Reactor temperature
+6. T^{e}: Inlet temperature
+7. T^{c} matched with T_c: Coolant (jacket) temperature (symbol slightly differs in LaTeX representation)
+8. \rho: Liquid density
+9. c_p: Specific heat capacity of the liquid
+10. \dot Q: Heat transfer rate to/from the reactor
+11. UA matched with U A (similarly, symbol connector absence is accepted)
+12. k_0: Pre-exponential factor of the reaction rate
+13. E: Activation energy of the reaction 
+14. R: Universal gas constant
+15. r: Reaction rate of species A
+16. \Delta G_R: Gibbs free energy change of reaction
+17. \Delta H_R: Reaction enthalpy change
+18. S: Total entropy of the system
+19. s(T): Specific entropy of the system
+20. \dot{\sigma}: Entropy generation rate
+21. n_A: Number of moles of species A in the system
+22. n_B: Number of moles of species B in the system
+23. X: Thermodynamic driving force
+24. J: Flow associated with a driving force
+25. L: Phenomenological conductance
+
+
+Single match found based on description:
+26. F matched with Feed volumetric flowrate by description/meaning
+27. \Delta H: Heat of reaction 
+28. S(T, n_A, n_B): Entropy as a function of temperature and moles of species (based on function description indirectly implies presence in equation)
+
+False Positives (FP):
+1. \Delta H_{R}: Entropy change entropy balance not explicitly listed in Ground Truth
+2. E/R: Activation temperature parameter not found
+3. J X: Entropy production per unit volume not found 
+4. \Delta G^{0}: Symbol for Gibbs change at reference temperature not recognized
+
+False Negatives (FN):
+1. t: Time
+2. C_B: Concentration of species B in the reactor
+3. C_A^e: Inlet concentration of A
+4. T_0: Reference temperature
+5. \Delta T: Temperature difference relative to the reference
+6. \Delta H^{0}: Standard heat of reaction at reference
+7. \Delta S_R: Entropy change of the reacting system
+8. s^{e}: Specific entropy in the inlet stream
+
+In conclusion, the Prediction list performed reasonably well with precision close to 0.8, indicating a good match between items from the Prediction and Ground Truth lists, supplementing **with description when exact matches couldn't be found.**"
